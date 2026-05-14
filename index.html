@@ -1216,6 +1216,170 @@ select.filter-input option{background:var(--surface2);}
     </div>
 
 
+    <!-- WIDGET 1: VUURWERKKAP -->
+    <div class="card" style="margin-bottom:24px;display:none;" id="vuurwerk-card">
+      <div class="card-header" onclick="toggleWidget('vuurwerk')" style="cursor:pointer;user-select:none;">
+        <div class="card-icon" style="background:rgba(239,68,68,.15);">🧨</div>
+        <div><div class="card-title" style="color:var(--red);">Vuurwerkkap meldingen</div><div class="card-subtitle" id="vuurwerk-subtitle">Ontbrekend of beschadigd</div></div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+          <button class="btn btn-ghost" onclick="event.stopPropagation();vernieuwWidget('vuurwerk')" style="font-size:12px;padding:5px 8px;" title="Vernieuwen">↻</button>
+          <button class="btn btn-ghost" id="vuurwerk-export-btn" style="display:none;font-size:12px;" onclick="event.stopPropagation();exportWidget('vuurwerk')">📊 Excel</button>
+          <button class="btn btn-ghost" id="vuurwerk-pdf-btn" style="display:none;font-size:12px;" onclick="event.stopPropagation();exportWidgetPDF('vuurwerk')">📄 PDF</button>
+          <span id="vuurwerk-chevron" style="font-size:18px;color:var(--text3);transition:transform .2s;">▼</span>
+        </div>
+      </div>
+      <div id="vuurwerk-body" style="display:none;">
+        <div class="filter-bar" style="gap:8px;">
+          <input class="filter-input" id="vuurwerk-search" placeholder="Zoek automaat of locatie..." style="flex:1;font-size:13px;" oninput="filterWidget('vuurwerk')"/>
+          <select class="filter-input" id="vuurwerk-status" onchange="filterWidget('vuurwerk')" style="font-size:13px;">
+            <option value="">Alle meldingen</option>
+            <option value="ontbreekt">Nee ontbreekt</option>
+            <option value="schade">Met schade</option>
+          </select>
+        </div>
+        <div id="vuurwerk-lijst" style="max-height:400px;overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- WIDGET 2: SCHADE MELDINGEN -->
+    <div class="card" style="margin-bottom:24px;display:none;" id="schade-card">
+      <div class="card-header" onclick="toggleWidget('schade')" style="cursor:pointer;user-select:none;">
+        <div class="card-icon" style="background:rgba(245,158,11,.15);">⚠️</div>
+        <div><div class="card-title" style="color:var(--amber);">Schade meldingen</div><div class="card-subtitle" id="schade-subtitle">Controle schade met bijzonderheden</div></div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+          <button class="btn btn-ghost" onclick="event.stopPropagation();vernieuwWidget('schade')" style="font-size:12px;padding:5px 8px;" title="Vernieuwen">↻</button>
+          <button class="btn btn-ghost" id="schade-export-btn" style="display:none;font-size:12px;" onclick="event.stopPropagation();exportWidget('schade')">📊 Excel</button>
+          <button class="btn btn-ghost" id="schade-pdf-btn" style="display:none;font-size:12px;" onclick="event.stopPropagation();exportWidgetPDF('schade')">📄 PDF</button>
+          <span id="schade-chevron" style="font-size:18px;color:var(--text3);transition:transform .2s;">▼</span>
+        </div>
+      </div>
+      <div id="schade-body" style="display:none;">
+        <div class="filter-bar" style="gap:8px;">
+          <input class="filter-input" id="schade-search" placeholder="Zoek automaat of locatie..." style="flex:1;font-size:13px;" oninput="filterWidget('schade')"/>
+        </div>
+        <div id="schade-lijst" style="max-height:400px;overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- WIDGET 3: ROEST / VOCHT -->
+    <div class="card" style="margin-bottom:24px;display:none;" id="roest-card">
+      <div class="card-header" onclick="toggleWidget('roest')" style="cursor:pointer;user-select:none;">
+        <div class="card-icon" style="background:rgba(239,68,68,.15);">🔴</div>
+        <div><div class="card-title" style="color:var(--red);">Roest & vocht meldingen</div><div class="card-subtitle" id="roest-subtitle">Automaten met roest of vochtproblemen</div></div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+          <button class="btn btn-ghost" onclick="event.stopPropagation();vernieuwWidget('roest')" style="font-size:12px;padding:5px 8px;" title="Vernieuwen">↻</button>
+          <button class="btn btn-ghost" id="roest-export-btn" style="display:none;font-size:12px;" onclick="event.stopPropagation();exportWidget('roest')">📊 Excel</button>
+          <button class="btn btn-ghost" id="roest-pdf-btn" style="display:none;font-size:12px;" onclick="event.stopPropagation();exportWidgetPDF('roest')">📄 PDF</button>
+          <span id="roest-chevron" style="font-size:18px;color:var(--text3);transition:transform .2s;">▼</span>
+        </div>
+      </div>
+      <div id="roest-body" style="display:none;">
+        <div class="filter-bar" style="gap:8px;">
+          <input class="filter-input" id="roest-search" placeholder="Zoek automaat of locatie..." style="flex:1;font-size:13px;" oninput="filterWidget('roest')"/>
+        </div>
+        <div id="roest-lijst" style="max-height:400px;overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- WIDGET 4: LAGE ACCU -->
+    <div class="card" style="margin-bottom:24px;display:none;" id="accu-card">
+      <div class="card-header" onclick="toggleWidget('accu')" style="cursor:pointer;user-select:none;">
+        <div class="card-icon" style="background:rgba(239,68,68,.15);">🔋</div>
+        <div><div class="card-title" style="color:var(--red);">Lage accuspanning</div><div class="card-subtitle" id="accu-subtitle">Onder drempelwaarde</div></div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+          <div onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:12px;color:var(--text3);">Drempel:</span>
+            <input id="accu-drempel" type="number" value="12" min="1" max="24" style="width:55px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-size:13px;text-align:center;" oninput="filterWidget('accu')"/>
+            <span style="font-size:12px;color:var(--text3);">V</span>
+          </div>
+          <button class="btn btn-ghost" onclick="event.stopPropagation();vernieuwWidget('accu')" style="font-size:12px;padding:5px 8px;" title="Vernieuwen">↻</button>
+          <button class="btn btn-ghost" id="accu-export-btn" style="display:none;font-size:12px;" onclick="event.stopPropagation();exportWidget('accu')">📊 Excel</button>
+          <button class="btn btn-ghost" id="accu-pdf-btn" style="display:none;font-size:12px;" onclick="event.stopPropagation();exportWidgetPDF('accu')">📄 PDF</button>
+          <span id="accu-chevron" style="font-size:18px;color:var(--text3);transition:transform .2s;">▼</span>
+        </div>
+      </div>
+      <div id="accu-body" style="display:none;">
+        <div class="filter-bar" style="gap:8px;">
+          <input class="filter-input" id="accu-search" placeholder="Zoek automaat of locatie..." style="flex:1;font-size:13px;" oninput="filterWidget('accu')"/>
+        </div>
+        <div id="accu-lijst" style="max-height:400px;overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- WIDGET 5: VERVANGEN ONDERDELEN -->
+    <div class="card" style="margin-bottom:24px;display:none;" id="onderdelen-card">
+      <div class="card-header" onclick="toggleWidget('onderdelen')" style="cursor:pointer;user-select:none;">
+        <div class="card-icon" style="background:rgba(245,158,11,.15);">🔩</div>
+        <div><div class="card-title" style="color:var(--amber);">Vervangen onderdelen</div><div class="card-subtitle" id="onderdelen-sub">Kosten en frequentie overzicht</div></div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+          <button class="btn btn-ghost" onclick="event.stopPropagation();vernieuwWidget('onderdelen')" style="font-size:12px;padding:5px 8px;" title="Vernieuwen">↻</button>
+          <button class="btn btn-ghost" id="onderdelen-export-btn" style="display:none;font-size:12px;" onclick="event.stopPropagation();exportWidget('onderdelen')">📊 Excel</button>
+          <button class="btn btn-ghost" id="onderdelen-pdf-btn" style="display:none;font-size:12px;" onclick="event.stopPropagation();exportWidgetPDF('onderdelen')">📄 PDF</button>
+          <span id="onderdelen-chevron" style="font-size:18px;color:var(--text3);transition:transform .2s;">▼</span>
+        </div>
+      </div>
+      <div id="onderdelen-body" style="display:none;">
+        <div id="onderdelen-widget-lijst" style="max-height:400px;overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- WIDGET 6: TESTBETALING MISLUKT -->
+    <div class="card" style="margin-bottom:24px;display:none;" id="test-card">
+      <div class="card-header" onclick="toggleWidget('test')" style="cursor:pointer;user-select:none;">
+        <div class="card-icon" style="background:rgba(239,68,68,.15);">❌</div>
+        <div><div class="card-title" style="color:var(--red);">Testbetaling niet uitgevoerd</div><div class="card-subtitle" id="test-subtitle">Automaten waarbij testbetaling ontbreekt</div></div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+          <button class="btn btn-ghost" onclick="event.stopPropagation();vernieuwWidget('test')" style="font-size:12px;padding:5px 8px;" title="Vernieuwen">↻</button>
+          <button class="btn btn-ghost" id="test-export-btn" style="display:none;font-size:12px;" onclick="event.stopPropagation();exportWidget('test')">📊 Excel</button>
+          <button class="btn btn-ghost" id="test-pdf-btn" style="display:none;font-size:12px;" onclick="event.stopPropagation();exportWidgetPDF('test')">📄 PDF</button>
+          <span id="test-chevron" style="font-size:18px;color:var(--text3);transition:transform .2s;">▼</span>
+        </div>
+      </div>
+      <div id="test-body" style="display:none;">
+        <div class="filter-bar" style="gap:8px;">
+          <input class="filter-input" id="test-search" placeholder="Zoek automaat of locatie..." style="flex:1;font-size:13px;" oninput="filterWidget('test')"/>
+        </div>
+        <div id="test-lijst" style="max-height:400px;overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- WIDGET 7: SOLAR VERWAARLOZING -->
+    <div class="card" style="margin-bottom:24px;display:none;" id="solar-card">
+      <div class="card-header" onclick="toggleWidget('solar')" style="cursor:pointer;user-select:none;">
+        <div class="card-icon" style="background:rgba(245,158,11,.15);">☀️</div>
+        <div><div class="card-title" style="color:var(--amber);">Solar — zonnepaneel niet gereinigd</div><div class="card-subtitle" id="solar-widget-subtitle">Solar automaten waarbij paneel overgeslagen</div></div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+          <button class="btn btn-ghost" onclick="event.stopPropagation();vernieuwWidget('solar')" style="font-size:12px;padding:5px 8px;" title="Vernieuwen">↻</button>
+          <button class="btn btn-ghost" id="solar-export-btn" style="display:none;font-size:12px;" onclick="event.stopPropagation();exportWidget('solar')">📊 Excel</button>
+          <button class="btn btn-ghost" id="solar-pdf-btn" style="display:none;font-size:12px;" onclick="event.stopPropagation();exportWidgetPDF('solar')">📄 PDF</button>
+          <span id="solar-chevron" style="font-size:18px;color:var(--text3);transition:transform .2s;">▼</span>
+        </div>
+      </div>
+      <div id="solar-body" style="display:none;">
+        <div class="filter-bar" style="gap:8px;">
+          <input class="filter-input" id="solar-search" placeholder="Zoek automaat of locatie..." style="flex:1;font-size:13px;" oninput="filterWidget('solar')"/>
+        </div>
+        <div id="solar-lijst" style="max-height:400px;overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- WIDGET 8: MAANDRAPPORTAGE -->
+    <div class="card" style="margin-bottom:24px;display:none;" id="maand-card">
+      <div class="card-header" onclick="toggleWidget('maand')" style="cursor:pointer;user-select:none;">
+        <div class="card-icon blue">📊</div>
+        <div><div class="card-title">Maandrapportage</div><div class="card-subtitle" id="maand-subtitle">Samenvatting per maand</div></div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+          <button class="btn btn-ghost" onclick="event.stopPropagation();vernieuwWidget('maand')" style="font-size:12px;padding:5px 8px;" title="Vernieuwen">↻</button>
+          <button class="btn btn-ghost" id="maand-export-btn" style="display:none;font-size:12px;" onclick="event.stopPropagation();exportWidget('maand')">📊 Excel</button>
+          <button class="btn btn-ghost" id="maand-pdf-btn" style="display:none;font-size:12px;" onclick="event.stopPropagation();exportWidgetPDF('maand')">📄 PDF</button>
+          <span id="maand-chevron" style="font-size:18px;color:var(--text3);transition:transform .2s;">▼</span>
+        </div>
+      </div>
+      <div id="maand-body" style="display:none;">
+        <div id="maand-lijst" style="max-height:500px;overflow-y:auto;"></div>
+      </div>
+    </div>
+
     <!-- ONDERHOUD FREQUENTIE -->
     <div class="card" style="margin-bottom:24px;">
       <div class="card-header" onclick="toggleFrequentie()" style="cursor:pointer;user-select:none;">
@@ -2465,6 +2629,8 @@ async function renderDashboard(){
     if(graffitiCard) graffitiCard.style.display=userRole==='superbeheerder'?'block':'none';
     const typeCard=document.getElementById('type-card');
     if(typeCard) typeCard.style.display=userRole==='superbeheerder'?'block':'none';
+    // Extra widgets alleen voor superbeheerder
+    if(userRole==='superbeheerder') buildAllWidgets(dbData);
     const now=new Date().toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
     document.getElementById('dash-subtitle').textContent=dbData.length+' inzendingen · bijgewerkt om '+now;
   }catch(e){
@@ -4114,6 +4280,521 @@ function renderOnderdelenGeselecteerd() {
   el.innerHTML=items.map(g=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);"><div><span style="font-size:13px;color:var(--text);">${g.onderdeel.naam}</span>${g.aantal>1?`<span style="font-size:11px;color:var(--text3);margin-left:6px;">× ${g.aantal}</span>`:''}</div><span style="font-family:var(--mono);font-size:13px;color:var(--amber);">${formatEuro(g.onderdeel.prijs*g.aantal)}</span></div>`).join('');
 }
 
+
+/* ===== 8 EXTRA WIDGETS ===== */
+const widgetState = {};
+
+function toggleWidget(id) {
+  const body = document.getElementById(id+'-body');
+  const chev = document.getElementById(id+'-chevron');
+  if (!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  if (chev) chev.style.transform = open ? '' : 'rotate(180deg)';
+  if (!open && !widgetState[id]) { buildWidget(id); widgetState[id] = true; }
+}
+
+function buildAllWidgets(data) {
+  const widgets = ['vuurwerk','schade','roest','accu','onderdelen','test','solar','maand'];
+  widgets.forEach(id => {
+    widgetState[id] = false; // reset zodat herrendert bij volgende open
+    const card = document.getElementById(id+'-card');
+    if (card) card.style.display = 'block';
+  });
+  // Toon tellers in subtitles
+  updateWidgetSubtitles(data);
+}
+
+function updateWidgetSubtitles(data) {
+  const vuurwerk = data.filter(x => {
+    const r = x.cos_remarks || {};
+    const v = r['cos_vuurwerk'] || r[8] || '';
+    return v === 'Nee ontbreekt' || v === 'Ja aanwezig maar met schade';
+  });
+  const schade = data.filter(x => {
+    const r = x.cos_remarks || {};
+    const afgevinkt = cosVal(x.cos, {id:'cos_schade'}, 7);
+    const rem = r['cos_schade'] || r[7] || '';
+    return afgevinkt && rem.trim();
+  });
+  const roest = data.filter(x => cosVal(x.prev, {id:'prev_roest'}, 4) || cosVal(x.prev, {id:'prev_vocht'}, 4));
+  const drempel = parseFloat(document.getElementById('accu-drempel')?.value || 12);
+  const accu = data.filter(x => x.accu_val && parseFloat(x.accu_val) < drempel);
+  const metOnderdelen = data.filter(x => x.onderdelen && x.onderdelen.length > 0);
+  const test = data.filter(x => {
+    const prevIdx = prevItems.findIndex(i => typeof i === 'object' && i.id === 'prev_test1');
+    return !cosVal(x.prev, {id:'prev_test1'}, prevIdx >= 0 ? prevIdx : 12);
+  });
+  const solar = data.filter(x => {
+    const isSolar = x.automaat_type === 'Solar' || cosVal(x.cos, {id:'cos_solar'}, 6);
+    const gereinigd = cosVal(x.cos, {id:'cos_solar'}, 6);
+    return isSolar && !gereinigd;
+  });
+
+  const set = (id, count, extra='') => {
+    const el = document.getElementById(id+'-subtitle');
+    if (el) el.textContent = `${count} melding${count!==1?'en':''} gevonden${extra}`;
+    const exportBtn = document.getElementById(id+'-export-btn');
+    if (exportBtn) exportBtn.style.display = count > 0 ? '' : 'none';
+    const pdfBtn = document.getElementById(id+'-pdf-btn');
+    if (pdfBtn) pdfBtn.style.display = count > 0 ? '' : 'none';
+  };
+
+  set('vuurwerk', vuurwerk.length);
+  set('schade', schade.length);
+  set('roest', roest.length);
+  set('accu', accu.length, ` (drempel: ${drempel}V)`);
+  const totKosten = metOnderdelen.reduce((s,x)=>s+(x.totaal_kosten||0),0);
+  const subOnd = document.getElementById('onderdelen-sub');
+  if (subOnd) subOnd.textContent = `${metOnderdelen.length} formulieren · totaal ${formatEuro(totKosten)}`;
+  const exportOnd = document.getElementById('onderdelen-export-btn');
+  if (exportOnd) exportOnd.style.display = metOnderdelen.length > 0 ? '' : 'none';
+  const pdfOnd = document.getElementById('onderdelen-pdf-btn');
+  if (pdfOnd) pdfOnd.style.display = metOnderdelen.length > 0 ? '' : 'none';
+  set('test', test.length);
+  set('solar', solar.length);
+  // Maand
+  const maandEl = document.getElementById('maand-subtitle');
+  const maanden = [...new Set(data.map(x=>(x.datum||'').slice(0,7)).filter(Boolean))].length;
+  if (maandEl) maandEl.textContent = `${maanden} maanden · ${data.length} beurten totaal`;
+  const maandExport = document.getElementById('maand-export-btn');
+  if (maandExport) maandExport.style.display = data.length > 0 ? '' : 'none';
+  const maandPdf = document.getElementById('maand-pdf-btn');
+  if (maandPdf) maandPdf.style.display = data.length > 0 ? '' : 'none';
+}
+
+function buildWidget(id) {
+  switch(id) {
+    case 'vuurwerk': buildVuurwerkWidget(); break;
+    case 'schade': buildSchadeWidget(); break;
+    case 'roest': buildRoestWidget(); break;
+    case 'accu': buildAccuWidget(); break;
+    case 'onderdelen': buildOnderdelenWidget(); break;
+    case 'test': buildTestWidget(); break;
+    case 'solar': buildSolarWidget(); break;
+    case 'maand': buildMaandWidget(); break;
+  }
+}
+
+function filterWidget(id) {
+  widgetState[id] = false;
+  buildWidget(id);
+}
+
+// Herbruikbare lijstrenderer voor eenvoudige widgets
+function renderWidgetLijst(elId, items, extraCol) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (!items.length) {
+    el.innerHTML = `<div class="plan-empty" style="color:var(--green);">✅ Geen meldingen gevonden</div>`;
+    return;
+  }
+  el.innerHTML = items.map(x => `
+    <div style="padding:12px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;cursor:pointer;transition:background .1s;" onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background=''" onclick="openDetail(${x.id})">
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:600;">${x.automaatnr||'—'}</span>
+          <span style="font-size:11px;color:var(--text3);">${x.datum||'—'}</span>
+          <span style="font-size:11px;color:var(--text3);">${x.mobilist||'—'}</span>
+          ${statusBadge(x.status)}
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px;">${x.locatie||'—'}</div>
+        ${extraCol(x)}
+      </div>
+    </div>`).join('');
+}
+
+// WIDGET 1: VUURWERKKAP
+function buildVuurwerkWidget() {
+  const zoek = (document.getElementById('vuurwerk-search')?.value||'').toLowerCase();
+  const statusF = document.getElementById('vuurwerk-status')?.value||'';
+  const data = (dbData||[]).filter(x => {
+    const r = x.cos_remarks || {};
+    const v = r['cos_vuurwerk'] || r[8] || '';
+    const isProbleem = v === 'Nee ontbreekt' || v === 'Ja aanwezig maar met schade';
+    if (!isProbleem) return false;
+    if (statusF === 'ontbreekt' && v !== 'Nee ontbreekt') return false;
+    if (statusF === 'schade' && v !== 'Ja aanwezig maar met schade') return false;
+    return !zoek || (x.automaatnr||'').toLowerCase().includes(zoek) || (x.locatie||'').toLowerCase().includes(zoek);
+  }).sort((a,b)=>String(b.datum).localeCompare(String(a.datum)));
+  renderWidgetLijst('vuurwerk-lijst', data, x => {
+    const v = (x.cos_remarks||{})['cos_vuurwerk'] || (x.cos_remarks||{})[8] || '';
+    const kleur = v === 'Nee ontbreekt' ? 'var(--red)' : 'var(--amber)';
+    return `<div style="font-size:11px;color:${kleur};margin-top:3px;font-weight:600;">🧨 ${v}</div>`;
+  });
+}
+
+// WIDGET 2: SCHADE
+function buildSchadeWidget() {
+  const zoek = (document.getElementById('schade-search')?.value||'').toLowerCase();
+  const schadeIdx = cosItems.findIndex(i => typeof i==='object' && i.id==='cos_schade');
+  const data = (dbData||[]).filter(x => {
+    const afgevinkt = cosVal(x.cos, {id:'cos_schade'}, schadeIdx >= 0 ? schadeIdx : 7);
+    const rem = (x.cos_remarks||{})['cos_schade'] || (x.cos_remarks||{})[schadeIdx >= 0 ? schadeIdx : 7] || '';
+    if (!afgevinkt || !rem.trim()) return false;
+    return !zoek || (x.automaatnr||'').toLowerCase().includes(zoek) || (x.locatie||'').toLowerCase().includes(zoek);
+  }).sort((a,b)=>String(b.datum).localeCompare(String(a.datum)));
+  renderWidgetLijst('schade-lijst', data, x => {
+    const rem = (x.cos_remarks||{})['cos_schade'] || (x.cos_remarks||{})[7] || '';
+    return rem ? `<div style="font-size:11px;color:var(--amber);margin-top:3px;background:var(--amber-bg);padding:3px 8px;border-radius:5px;display:inline-block;">⚠️ ${rem}</div>` : '';
+  });
+}
+
+// WIDGET 3: ROEST/VOCHT
+function buildRoestWidget() {
+  const zoek = (document.getElementById('roest-search')?.value||'').toLowerCase();
+  const roestIdx = prevItems.findIndex(i => typeof i==='object' && i.id==='prev_roest');
+  const data = (dbData||[]).filter(x => {
+    const afgevinkt = cosVal(x.prev, {id:'prev_roest'}, roestIdx >= 0 ? roestIdx : 4);
+    return afgevinkt && (!zoek || (x.automaatnr||'').toLowerCase().includes(zoek) || (x.locatie||'').toLowerCase().includes(zoek));
+  }).sort((a,b)=>String(b.datum).localeCompare(String(a.datum)));
+  renderWidgetLijst('roest-lijst', data, x => {
+    const rem = (x.prev_remarks||{})['prev_roest'] || (x.prev_remarks||{})[4] || '';
+    return rem ? `<div style="font-size:11px;color:var(--red);margin-top:3px;">🔴 ${rem}</div>` : '<div style="font-size:11px;color:var(--red);margin-top:3px;">🔴 Roest/vocht aanwezig</div>';
+  });
+}
+
+// WIDGET 4: LAGE ACCU
+function buildAccuWidget() {
+  const zoek = (document.getElementById('accu-search')?.value||'').toLowerCase();
+  const drempel = parseFloat(document.getElementById('accu-drempel')?.value||12);
+  const data = (dbData||[]).filter(x => {
+    if (!x.accu_val) return false;
+    const v = parseFloat(x.accu_val);
+    return !isNaN(v) && v < drempel && (!zoek || (x.automaatnr||'').toLowerCase().includes(zoek) || (x.locatie||'').toLowerCase().includes(zoek));
+  }).sort((a,b)=>parseFloat(a.accu_val)-parseFloat(b.accu_val));
+  const el = document.getElementById('accu-lijst');
+  if (!el) return;
+  if (!data.length) { el.innerHTML = `<div class="plan-empty" style="color:var(--green);">✅ Geen lage accuspanningen gevonden (drempel: ${drempel}V)</div>`; return; }
+  el.innerHTML = data.map(x => {
+    const v = parseFloat(x.accu_val);
+    const kleur = v < 11 ? 'var(--red)' : 'var(--amber)';
+    return `<div style="padding:12px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;cursor:pointer;transition:background .1s;" onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background=''" onclick="openDetail(${x.id})">
+      <div style="font-family:var(--mono);font-size:20px;font-weight:700;color:${kleur};flex-shrink:0;min-width:60px;">${v}V</div>
+      <div style="flex:1;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:600;">${x.automaatnr||'—'}</span>
+          <span style="font-size:11px;color:var(--text3);">${x.datum||'—'} · ${x.mobilist||'—'}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text2);">${x.locatie||'—'}</div>
+      </div>
+    </div>`;
+  }).join('');
+  updateWidgetSubtitles(dbData);
+}
+
+// WIDGET 5: VERVANGEN ONDERDELEN
+function buildOnderdelenWidget() {
+  const data = (dbData||[]).filter(x => x.onderdelen && x.onderdelen.length > 0);
+  const el = document.getElementById('onderdelen-widget-lijst');
+  if (!el) return;
+  if (!data.length) { el.innerHTML = `<div class="plan-empty">Geen vervangen onderdelen gevonden</div>`; return; }
+  // Aggregeer per onderdeel naam
+  const aggregaat = {};
+  data.forEach(x => {
+    (x.onderdelen||[]).forEach(o => {
+      if (!aggregaat[o.naam]) aggregaat[o.naam] = {naam:o.naam, nr:o.nr||'', aantal:0, totaal:0, beurten:[]};
+      aggregaat[o.naam].aantal += (o.aantal||1);
+      aggregaat[o.naam].totaal += (o.totaal||o.prijs*(o.aantal||1)||0);
+      aggregaat[o.naam].beurten.push(x.automaatnr);
+    });
+  });
+  const gesorteerd = Object.values(aggregaat).sort((a,b)=>b.totaal-a.totaal);
+  const totaalAlles = gesorteerd.reduce((s,o)=>s+o.totaal,0);
+  el.innerHTML = `
+    <div style="padding:12px 20px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:13px;font-weight:600;">${gesorteerd.length} verschillende onderdelen · ${data.length} formulieren</span>
+      <span style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--amber);">${formatEuro(totaalAlles)}</span>
+    </div>
+    ${gesorteerd.map(o => `
+    <div style="padding:12px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;">
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:500;">${o.naam}</div>
+        <div style="font-size:11px;color:var(--text3);">Nr. ${o.nr||'—'} · ${o.beurten.length} formulier${o.beurten.length!==1?'en':''}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div style="font-family:var(--mono);font-size:13px;font-weight:600;color:var(--amber);">${formatEuro(o.totaal)}</div>
+        <div style="font-size:11px;color:var(--text3);">${o.aantal}× vervangen</div>
+      </div>
+    </div>`).join('')}`;
+}
+
+// WIDGET 6: TESTBETALING MISLUKT
+function buildTestWidget() {
+  const zoek = (document.getElementById('test-search')?.value||'').toLowerCase();
+  const testIdx = prevItems.findIndex(i => typeof i==='object' && i.id==='prev_test1');
+  const data = (dbData||[]).filter(x => {
+    const afgevinkt = cosVal(x.prev, {id:'prev_test1'}, testIdx >= 0 ? testIdx : 12);
+    return !afgevinkt && (!zoek || (x.automaatnr||'').toLowerCase().includes(zoek) || (x.locatie||'').toLowerCase().includes(zoek));
+  }).sort((a,b)=>String(b.datum).localeCompare(String(a.datum)));
+  renderWidgetLijst('test-lijst', data, () => '<div style="font-size:11px;color:var(--red);margin-top:3px;">❌ Testbetaling niet uitgevoerd</div>');
+}
+
+// WIDGET 7: SOLAR VERWAARLOZING
+function buildSolarWidget() {
+  const zoek = (document.getElementById('solar-search')?.value||'').toLowerCase();
+  const solarIdx = cosItems.findIndex(i => typeof i==='object' && i.id==='cos_solar');
+  const data = (dbData||[]).filter(x => {
+    const isSolar = x.automaat_type==='Solar' || cosVal(x.cos, {id:'cos_solar'}, solarIdx>=0?solarIdx:6);
+    if (!isSolar) return false;
+    const gereinigd = cosVal(x.cos, {id:'cos_solar'}, solarIdx>=0?solarIdx:6);
+    return !gereinigd && (!zoek || (x.automaatnr||'').toLowerCase().includes(zoek) || (x.locatie||'').toLowerCase().includes(zoek));
+  }).sort((a,b)=>String(b.datum).localeCompare(String(a.datum)));
+  renderWidgetLijst('solar-lijst', data, () => '<div style="font-size:11px;color:var(--amber);margin-top:3px;">☀️ Zonnepaneel niet gereinigd</div>');
+}
+
+// WIDGET 8: MAANDRAPPORTAGE
+function buildMaandWidget() {
+  const data = dbData||[];
+  const el = document.getElementById('maand-lijst');
+  if (!el || !data.length) { if(el) el.innerHTML = `<div class="plan-empty">Geen data</div>`; return; }
+  const maanden = {};
+  data.forEach(x => {
+    const m = (x.datum||'').slice(0,7);
+    if (!m) return;
+    if (!maanden[m]) maanden[m] = {beurten:0, goedgekeurd:0, afgekeurd:0, score:0, kosten:0, graffiti:0, vuurwerk:0, roest:0};
+    maanden[m].beurten++;
+    const s = x.status||'ingediend';
+    if (s==='goedgekeurd') maanden[m].goedgekeurd++;
+    if (s==='afgekeurd') maanden[m].afgekeurd++;
+    maanden[m].score += (x.pct||0);
+    maanden[m].kosten += (x.totaal_kosten||0);
+    const r = x.cos_remarks||{};
+    if (r['cos_graffiti']==='Ja er is Graffiti'||r[1]==='Ja er is Graffiti') maanden[m].graffiti++;
+    const v = r['cos_vuurwerk']||r[8]||'';
+    if (v==='Nee ontbreekt'||v==='Ja aanwezig maar met schade') maanden[m].vuurwerk++;
+    if (cosVal(x.prev,{id:'prev_roest'},4)) maanden[m].roest++;
+  });
+  const gesorteerd = Object.entries(maanden).sort((a,b)=>b[0].localeCompare(a[0]));
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;gap:0;font-size:11px;background:var(--surface2);border-bottom:1px solid var(--border);">
+      ${['Maand','Beurten','Goedgekeurd','Afgekeurd','Gem. %','Kosten','🎨 Graffiti','🧨 Vuurwerk','🔴 Roest'].map(h=>`<div style="padding:8px 12px;font-weight:600;color:var(--text3);letter-spacing:.4px;text-transform:uppercase;">${h}</div>`).join('')}
+    </div>
+    ${gesorteerd.map(([m, d],i) => {
+      const gem = d.beurten ? Math.round(d.score/d.beurten) : 0;
+      const gemKleur = gem>=90?'var(--green)':gem>=70?'var(--amber)':'var(--red)';
+      const [jaar,maand] = m.split('-');
+      const maandNaam = MAANDEN[parseInt(maand)-1]+' '+jaar;
+      return `<div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;gap:0;border-bottom:1px solid var(--border);background:${i%2?'':'var(--surface2)'};">
+        <div style="padding:10px 12px;font-weight:600;white-space:nowrap;">${maandNaam}</div>
+        <div style="padding:10px 12px;font-family:var(--mono);font-weight:700;color:var(--accent);">${d.beurten}</div>
+        <div style="padding:10px 12px;color:var(--green);">${d.goedgekeurd}</div>
+        <div style="padding:10px 12px;color:var(--red);">${d.afgekeurd}</div>
+        <div style="padding:10px 12px;font-family:var(--mono);color:${gemKleur};font-weight:700;">${gem}%</div>
+        <div style="padding:10px 12px;font-family:var(--mono);color:var(--amber);">${d.kosten>0?formatEuro(d.kosten):'—'}</div>
+        <div style="padding:10px 12px;color:${d.graffiti?'var(--amber)':'var(--text3)'};">${d.graffiti||'—'}</div>
+        <div style="padding:10px 12px;color:${d.vuurwerk?'var(--red)':'var(--text3)'};">${d.vuurwerk||'—'}</div>
+        <div style="padding:10px 12px;color:${d.roest?'var(--red)':'var(--text3)'};">${d.roest||'—'}</div>
+      </div>`;
+    }).join('')}`;
+}
+
+// EXPORT functie voor alle widgets
+function vernieuwWidget(id) {
+  // Herlaad dbData en herbouw widget
+  widgetState[id] = false;
+  toast(`↻ ${id} wordt vernieuwd...`);
+  buildWidget(id);
+  updateWidgetSubtitles(dbData);
+}
+
+function exportWidgetPDF(id) {
+  const titels = {
+    vuurwerk:'Vuurwerkkap meldingen', schade:'Schade meldingen',
+    roest:'Roest en vocht', accu:'Lage accuspanning',
+    onderdelen:'Vervangen onderdelen', test:'Testbetaling niet uitgevoerd',
+    solar:'Solar verwaarlozing', maand:'Maandrapportage'
+  };
+  toast('⏳ PDF wordt gegenereerd...');
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation:'landscape', unit:'mm', format:'a4'});
+  const pw = doc.internal.pageSize.getWidth();
+  const vandaag = new Date().toLocaleDateString('nl-NL');
+
+  // Header
+  doc.setFillColor(30,58,138);
+  doc.roundedRect(10,8,pw-20,14,2,2,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(13);
+  doc.text(`CWT S3 — ${titels[id]}`, pw/2, 17, {align:'center'});
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(8);
+  doc.text(`Gegenereerd op ${vandaag}`, pw/2, 23, {align:'center'});
+  doc.setTextColor(30,41,59);
+
+  const solarIdx = cosItems.findIndex(i=>typeof i==='object'&&i.id==='cos_solar');
+  const testIdx = prevItems.findIndex(i=>typeof i==='object'&&i.id==='prev_test1');
+  const roestIdx = prevItems.findIndex(i=>typeof i==='object'&&i.id==='prev_roest');
+  const schadeIdx = cosItems.findIndex(i=>typeof i==='object'&&i.id==='cos_schade');
+  const drempel = parseFloat(document.getElementById('accu-drempel')?.value||12);
+
+  if (id === 'maand') {
+    const maanden = {};
+    (dbData||[]).forEach(x => {
+      const m=(x.datum||'').slice(0,7);if(!m)return;
+      if(!maanden[m])maanden[m]={beurten:0,goedgekeurd:0,afgekeurd:0,score:0,kosten:0,graffiti:0,vuurwerk:0,roest:0};
+      maanden[m].beurten++;
+      const s=x.status||'ingediend';
+      if(s==='goedgekeurd')maanden[m].goedgekeurd++;if(s==='afgekeurd')maanden[m].afgekeurd++;
+      maanden[m].score+=(x.pct||0);maanden[m].kosten+=(x.totaal_kosten||0);
+      const r=x.cos_remarks||{};
+      if(r['cos_graffiti']==='Ja er is Graffiti'||r[1]==='Ja er is Graffiti')maanden[m].graffiti++;
+      const v=r['cos_vuurwerk']||r[8]||'';if(v==='Nee ontbreekt'||v.includes('schade'))maanden[m].vuurwerk++;
+      if(cosVal(x.prev,{id:'prev_roest'},roestIdx>=0?roestIdx:4))maanden[m].roest++;
+    });
+    doc.autoTable({
+      head:[['Maand','Beurten','Goedgekeurd','Afgekeurd','Gem. %','Kosten','Graffiti','Vuurwerk','Roest']],
+      body: Object.entries(maanden).sort((a,b)=>b[0].localeCompare(a[0])).map(([m,d])=>{
+        const [jaar,maand]=m.split('-');
+        return[MAANDEN[parseInt(maand)-1]+' '+jaar,d.beurten,d.goedgekeurd,d.afgekeurd,
+          d.beurten?Math.round(d.score/d.beurten)+'%':'0%',
+          d.kosten>0?formatEuro(d.kosten):'—',d.graffiti||'—',d.vuurwerk||'—',d.roest||'—'];
+      }),
+      startY:28, margin:{left:10,right:10},
+      styles:{fontSize:9,cellPadding:3,halign:'center'},
+      headStyles:{fillColor:[30,58,138],textColor:255,fontStyle:'bold'},
+      alternateRowStyles:{fillColor:[248,250,252]},
+      columnStyles:{0:{halign:'left',fontStyle:'bold',cellWidth:28}},
+      didParseCell(d){if(d.column.index===4&&d.section==='body'){const p=parseInt(d.cell.raw);if(!isNaN(p)){d.cell.styles.textColor=p>=90?[22,163,74]:p>=70?[217,119,6]:[220,38,38];d.cell.styles.fontStyle='bold';}}}
+    });
+  } else if (id === 'onderdelen') {
+    const aggregaat = {};
+    (dbData||[]).filter(x=>x.onderdelen&&x.onderdelen.length).forEach(x=>{
+      (x.onderdelen||[]).forEach(o=>{
+        if(!aggregaat[o.naam])aggregaat[o.naam]={naam:o.naam,nr:o.nr||'',aantal:0,totaal:0};
+        aggregaat[o.naam].aantal+=(o.aantal||1);aggregaat[o.naam].totaal+=(o.totaal||0);
+      });
+    });
+    doc.autoTable({
+      head:[['Onderdeel','Artikelnr.','Totaal aantal','Totale kosten']],
+      body: Object.values(aggregaat).sort((a,b)=>b.totaal-a.totaal).map(o=>[o.naam,o.nr||'—',o.aantal,formatEuro(o.totaal)]),
+      startY:28, margin:{left:10,right:10},
+      styles:{fontSize:9,cellPadding:3},
+      headStyles:{fillColor:[30,58,138],textColor:255,fontStyle:'bold'},
+      alternateRowStyles:{fillColor:[248,250,252]},
+      columnStyles:{0:{cellWidth:100},2:{halign:'center'},3:{halign:'right',textColor:[180,83,9],fontStyle:'bold'}}
+    });
+  } else {
+    let filterFn;
+    if(id==='vuurwerk') filterFn=x=>{const v=(x.cos_remarks||{})['cos_vuurwerk']||(x.cos_remarks||{})[8]||'';return v==='Nee ontbreekt'||v==='Ja aanwezig maar met schade';};
+    if(id==='schade') filterFn=x=>{const a=cosVal(x.cos,{id:'cos_schade'},schadeIdx>=0?schadeIdx:7);const r=(x.cos_remarks||{})['cos_schade']||(x.cos_remarks||{})[7]||'';return a&&r.trim();};
+    if(id==='roest') filterFn=x=>cosVal(x.prev,{id:'prev_roest'},roestIdx>=0?roestIdx:4);
+    if(id==='accu') filterFn=x=>x.accu_val&&parseFloat(x.accu_val)<drempel;
+    if(id==='test') filterFn=x=>!cosVal(x.prev,{id:'prev_test1'},testIdx>=0?testIdx:12);
+    if(id==='solar') filterFn=x=>{const isSolar=x.automaat_type==='Solar'||cosVal(x.cos,{id:'cos_solar'},solarIdx>=0?solarIdx:6);return isSolar&&!cosVal(x.cos,{id:'cos_solar'},solarIdx>=0?solarIdx:6);};
+    const gefilterd = (dbData||[]).filter(filterFn||Boolean).sort((a,b)=>String(b.datum).localeCompare(String(a.datum)));
+
+    const extraKolom = (x) => {
+      if(id==='vuurwerk') return (x.cos_remarks||{})['cos_vuurwerk']||(x.cos_remarks||{})[8]||'';
+      if(id==='schade') return (x.cos_remarks||{})['cos_schade']||(x.cos_remarks||{})[7]||'';
+      if(id==='accu') return (x.accu_val||'')+'V';
+      return x.bijzonderheden||'';
+    };
+
+    doc.autoTable({
+      head:[['Datum','Automaat','Locatie','Zone','Monteur','Score','Status','Opmerking']],
+      body: gefilterd.map(x=>[x.datum||'—',x.automaatnr||'—',(x.locatie||'—').substring(0,40),x.zone||'—',x.mobilist||'—',(x.pct||0)+'%',(x.status||'ingediend').charAt(0).toUpperCase()+(x.status||'ingediend').slice(1),extraKolom(x).substring(0,30)]),
+      startY:28, margin:{left:10,right:10},
+      styles:{fontSize:8,cellPadding:2.5,valign:'middle'},
+      headStyles:{fillColor:[30,58,138],textColor:255,fontStyle:'bold'},
+      alternateRowStyles:{fillColor:[248,250,252]},
+      columnStyles:{0:{cellWidth:22,halign:'center'},1:{cellWidth:20,halign:'center',textColor:[30,58,138],fontStyle:'bold'},2:{cellWidth:55},3:{cellWidth:12,halign:'center'},4:{cellWidth:22,halign:'center'},5:{cellWidth:14,halign:'center'},6:{cellWidth:24,halign:'center'}},
+      didParseCell(d){if(d.column.index===5&&d.section==='body'){const p=parseInt(d.cell.raw);d.cell.styles.textColor=p>=90?[22,163,74]:p>=70?[217,119,6]:[220,38,38];d.cell.styles.fontStyle='bold';}}
+    });
+  }
+
+  // Footer
+  const pages = doc.internal.getNumberOfPages();
+  for(let i=1;i<=pages;i++){
+    doc.setPage(i);doc.setFontSize(7);doc.setTextColor(148,163,184);
+    doc.text(`CWT S3 Onderhoud · Vertrouwelijk · ${vandaag} · Pagina ${i} van ${pages}`,pw/2,doc.internal.pageSize.getHeight()-4,{align:'center'});
+  }
+
+  doc.save(`CWT_${id}_${new Date().toISOString().split('T')[0]}.pdf`);
+  toast(`📄 PDF gedownload`);
+  logAudit(userName,userRole,'export',`Widget PDF export: ${titels[id]}`);
+}
+
+function exportWidget(id) {
+  const titels = {
+    vuurwerk: 'Vuurwerkkap meldingen', schade: 'Schade meldingen',
+    roest: 'Roest en vocht', accu: 'Lage accuspanning',
+    onderdelen: 'Vervangen onderdelen', test: 'Testbetaling niet uitgevoerd',
+    solar: 'Solar verwaarlozing', maand: 'Maandrapportage'
+  };
+  const vandaag = new Date().toLocaleDateString('nl-NL');
+  const wb = XLSX.utils.book_new();
+
+  if (id === 'maand') {
+    const data = dbData||[];
+    const maanden = {};
+    data.forEach(x => {
+      const m = (x.datum||'').slice(0,7); if(!m) return;
+      if (!maanden[m]) maanden[m] = {beurten:0,goedgekeurd:0,afgekeurd:0,score:0,kosten:0,graffiti:0,vuurwerk:0,roest:0};
+      maanden[m].beurten++;
+      const s=x.status||'ingediend';
+      if(s==='goedgekeurd')maanden[m].goedgekeurd++;if(s==='afgekeurd')maanden[m].afgekeurd++;
+      maanden[m].score+=(x.pct||0);maanden[m].kosten+=(x.totaal_kosten||0);
+      const r=x.cos_remarks||{};
+      if(r['cos_graffiti']==='Ja er is Graffiti'||r[1]==='Ja er is Graffiti')maanden[m].graffiti++;
+      const v=r['cos_vuurwerk']||r[8]||'';if(v==='Nee ontbreekt'||v.includes('schade'))maanden[m].vuurwerk++;
+      if(cosVal(x.prev,{id:'prev_roest'},4))maanden[m].roest++;
+    });
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['CWT S3 — Maandrapportage'],[`Gegenereerd: ${vandaag}`],[],
+      ['Maand','Beurten','Goedgekeurd','Afgekeurd','Gem. %','Kosten','Graffiti','Vuurwerk','Roest'],
+      ...Object.entries(maanden).sort((a,b)=>b[0].localeCompare(a[0])).map(([m,d])=>{
+        const [jaar,maand]=m.split('-');
+        return[MAANDEN[parseInt(maand)-1]+' '+jaar,d.beurten,d.goedgekeurd,d.afgekeurd,
+          d.beurten?Math.round(d.score/d.beurten)+'%':'0%',
+          d.kosten>0?formatEuro(d.kosten):'€0,00',d.graffiti,d.vuurwerk,d.roest];
+      })
+    ]);
+    ws['!cols']=[16,8,12,10,8,14,10,10,8].map(w=>({wch:w}));
+    XLSX.utils.book_append_sheet(wb,ws,'Maandrapportage');
+  } else if (id === 'onderdelen') {
+    const aggregaat = {};
+    (dbData||[]).filter(x=>x.onderdelen&&x.onderdelen.length).forEach(x=>{
+      (x.onderdelen||[]).forEach(o=>{
+        if(!aggregaat[o.naam])aggregaat[o.naam]={naam:o.naam,nr:o.nr||'',aantal:0,totaal:0};
+        aggregaat[o.naam].aantal+=(o.aantal||1);aggregaat[o.naam].totaal+=(o.totaal||0);
+      });
+    });
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['CWT S3 — Vervangen onderdelen'],[`Gegenereerd: ${vandaag}`],[],
+      ['Onderdeel','Artikelnr.','Totaal aantal','Totale kosten'],
+      ...Object.values(aggregaat).sort((a,b)=>b.totaal-a.totaal).map(o=>[o.naam,o.nr,o.aantal,formatEuro(o.totaal)])
+    ]);
+    ws['!cols']=[40,14,14,14].map(w=>({wch:w}));
+    XLSX.utils.book_append_sheet(wb,ws,'Onderdelen');
+  } else {
+    // Generieke widget export
+    let filterFn;
+    const solarIdx = cosItems.findIndex(i=>typeof i==='object'&&i.id==='cos_solar');
+    const testIdx = prevItems.findIndex(i=>typeof i==='object'&&i.id==='prev_test1');
+    const roestIdx = prevItems.findIndex(i=>typeof i==='object'&&i.id==='prev_roest');
+    const schadeIdx = cosItems.findIndex(i=>typeof i==='object'&&i.id==='cos_schade');
+    const drempel = parseFloat(document.getElementById('accu-drempel')?.value||12);
+    if(id==='vuurwerk') filterFn=x=>{const v=(x.cos_remarks||{})['cos_vuurwerk']||(x.cos_remarks||{})[8]||'';return v==='Nee ontbreekt'||v==='Ja aanwezig maar met schade';};
+    if(id==='schade') filterFn=x=>{const a=cosVal(x.cos,{id:'cos_schade'},schadeIdx>=0?schadeIdx:7);const r=(x.cos_remarks||{})['cos_schade']||(x.cos_remarks||{})[7]||'';return a&&r.trim();};
+    if(id==='roest') filterFn=x=>cosVal(x.prev,{id:'prev_roest'},roestIdx>=0?roestIdx:4);
+    if(id==='accu') filterFn=x=>x.accu_val&&parseFloat(x.accu_val)<drempel;
+    if(id==='test') filterFn=x=>!cosVal(x.prev,{id:'prev_test1'},testIdx>=0?testIdx:12);
+    if(id==='solar') filterFn=x=>{const isSolar=x.automaat_type==='Solar'||cosVal(x.cos,{id:'cos_solar'},solarIdx>=0?solarIdx:6);return isSolar&&!cosVal(x.cos,{id:'cos_solar'},solarIdx>=0?solarIdx:6);};
+    const gefilterd = (dbData||[]).filter(filterFn||Boolean);
+    const ws = XLSX.utils.aoa_to_sheet([
+      [`CWT S3 — ${titels[id]}`],[`Gegenereerd: ${vandaag} · ${gefilterd.length} meldingen`],[],
+      ['Datum','Automaatnr.','Locatie','Zone','Monteur','Score %','Status','Bijzonderheden'],
+      ...gefilterd.map(x=>[x.datum||'',x.automaatnr||'',x.locatie||'',x.zone||'',x.mobilist||'',(x.pct||0)+'%',(x.status||'ingediend'),(x.bijzonderheden||'')])
+    ]);
+    ws['!cols']=[10,12,38,6,14,8,14,24].map(w=>({wch:w}));
+    XLSX.utils.book_append_sheet(wb,ws,titels[id].slice(0,31));
+  }
+  XLSX.writeFile(wb,`CWT_${id}_${new Date().toISOString().split('T')[0]}.xlsx`);
+  toast(`📊 ${titels[id]} gedownload`);
+  logAudit(userName,userRole,'export',`Widget export: ${titels[id]}`);
+}
 
 /* ===== GRAFFITI WIDGET ===== */
 let graffitiOpen = false;
