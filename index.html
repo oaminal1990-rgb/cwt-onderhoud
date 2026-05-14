@@ -760,9 +760,60 @@ select.filter-input option{background:var(--surface2);}
 <!-- SUPERBEHEERDER PAGINA -->
 <div id="page-super" class="page">
   <div class="main">
-    <div style="margin-bottom:24px;">
-      <div style="font-size:20px;font-weight:600;letter-spacing:-.3px;">⚙️ Superbeheer</div>
-      <div style="font-size:13px;color:var(--text3);margin-top:3px;">Gebruikersbeheer, instellingen en audit log</div>
+    <div style="margin-bottom:24px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+      <div>
+        <div style="font-size:20px;font-weight:600;letter-spacing:-.3px;">⚙️ Superbeheer</div>
+        <div style="font-size:13px;color:var(--text3);margin-top:3px;">Gebruikersbeheer, instellingen en audit log</div>
+      </div>
+      <button class="btn btn-primary" onclick="exportVolledigRapport()" style="min-height:40px;font-size:13px;">📦 Volledig rapport exporteren</button>
+    </div>
+
+    <!-- PRESTATIE PER MONTEUR -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header" onclick="superToggle('prestatie')" style="cursor:pointer;user-select:none;">
+        <div class="card-icon purple">👷</div>
+        <div><div class="card-title">Prestatie per monteur</div><div class="card-subtitle" id="prestatie-subtitle">Gedetailleerd overzicht per monteur</div></div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;" onclick="event.stopPropagation()">
+          <button class="btn btn-ghost" onclick="buildPrestatieWidget()" style="font-size:12px;">↻</button>
+          <button class="btn btn-ghost" onclick="exportPrestatieExcel()" style="font-size:12px;">📊 Excel</button>
+          <button class="btn btn-ghost" onclick="exportPrestatiePDF()" style="font-size:12px;">📄 PDF</button>
+        </div>
+        <span id="sb-chev-prestatie" style="font-size:18px;color:var(--text3);transition:transform .2s;margin-left:8px;">▼</span>
+      </div>
+      <div id="sb-body-prestatie" style="display:none;">
+        <div id="prestatie-inhoud"></div>
+      </div>
+    </div>
+
+    <!-- ZONES OVERZICHT -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header" onclick="superToggle('zones')" style="cursor:pointer;user-select:none;">
+        <div class="card-icon blue">🗺️</div>
+        <div><div class="card-title">Zones overzicht</div><div class="card-subtitle" id="zones-subtitle">Beurten en achterstallig per zone</div></div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;" onclick="event.stopPropagation()">
+          <button class="btn btn-ghost" onclick="buildZonesWidget()" style="font-size:12px;">↻</button>
+          <button class="btn btn-ghost" onclick="exportZonesExcel()" style="font-size:12px;">📊 Excel</button>
+        </div>
+        <span id="sb-chev-zones" style="font-size:18px;color:var(--text3);transition:transform .2s;margin-left:8px;">▼</span>
+      </div>
+      <div id="sb-body-zones" style="display:none;">
+        <div id="zones-inhoud"></div>
+      </div>
+    </div>
+
+    <!-- VERDACHTE ACTIVITEIT -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header" onclick="superToggle('verdacht')" style="cursor:pointer;user-select:none;">
+        <div class="card-icon" style="background:var(--red-bg);">🚨</div>
+        <div><div class="card-title" style="color:var(--red);">Verdachte activiteit</div><div class="card-subtitle" id="verdacht-subtitle">Dubbele inzendingen en afwijkingen</div></div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;" onclick="event.stopPropagation()">
+          <button class="btn btn-ghost" onclick="buildVerdachtWidget()" style="font-size:12px;">↻</button>
+        </div>
+        <span id="sb-chev-verdacht" style="font-size:18px;color:var(--text3);transition:transform .2s;margin-left:8px;">▼</span>
+      </div>
+      <div id="sb-body-verdacht" style="display:none;">
+        <div id="verdacht-inhoud"></div>
+      </div>
     </div>
 
     <!-- GEBRUIKERSBEHEER -->
@@ -2367,7 +2418,383 @@ function superToggle(id) {
   if (chev) chev.style.transform = open ? '' : 'rotate(180deg)';
 }
 
-/* ===== CHECKLIST BEHEER ===== */
+/* ===== SUPERBEHEER EXTRA FUNCTIES ===== */
+
+// Laad dbData als nog niet geladen voor superbeheer functies
+async function ensureDbData() {
+  if (!dbData || !dbData.length) {
+    try { dbData = await sbGet(); } catch(_) {}
+  }
+}
+
+// ── 1. VOLLEDIG RAPPORT EXPORT ──────────────────────────────
+async function exportVolledigRapport() {
+  toast('⏳ Volledig rapport wordt gegenereerd...');
+  await ensureDbData();
+  const wb = XLSX.utils.book_new();
+  const vandaag = new Date().toLocaleDateString('nl-NL');
+  const data = dbData || [];
+
+  // Tabblad 1: Alle formulieren
+  const ws1 = XLSX.utils.aoa_to_sheet([
+    ['CWT S3 Onderhoud — Alle formulieren'], [`Gegenereerd: ${vandaag}`], [],
+    ['Datum','Tijdstip','Automaat','Locatie','Zone','Monteur','Score %','Status','Kosten','Bijzonderheden'],
+    ...data.map(x=>[x.datum||'',x.tijdstip||'',x.automaatnr||'',x.locatie||'',x.zone||'',x.mobilist||'',(x.pct||0)+'%',(x.status||'ingediend').charAt(0).toUpperCase()+(x.status||'ingediend').slice(1),x.totaal_kosten>0?formatEuro(x.totaal_kosten):'',x.bijzonderheden||''])
+  ]);
+  ws1['!cols']=[10,8,12,38,6,14,8,14,12,30].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws1, 'Alle formulieren');
+
+  // Tabblad 2: Per monteur
+  const monteurs = {};
+  data.forEach(x=>{
+    const m=x.mobilist||'Onbekend';
+    if(!monteurs[m]) monteurs[m]={beurten:0,goed:0,af:0,open:0,score:0,kosten:0};
+    monteurs[m].beurten++; monteurs[m].score+=(x.pct||0); monteurs[m].kosten+=(x.totaal_kosten||0);
+    const s=x.status||'ingediend';
+    if(s==='goedgekeurd')monteurs[m].goed++;else if(s==='afgekeurd')monteurs[m].af++;else monteurs[m].open++;
+  });
+  const ws2 = XLSX.utils.aoa_to_sheet([
+    ['CWT S3 Onderhoud — Per monteur'], [`Gegenereerd: ${vandaag}`], [],
+    ['Monteur','Beurten','Goedgekeurd','Afgekeurd','Open','Gem. %','Totaal kosten'],
+    ...Object.entries(monteurs).sort((a,b)=>b[1].beurten-a[1].beurten).map(([n,d])=>[n,d.beurten,d.goed,d.af,d.open,d.beurten?Math.round(d.score/d.beurten)+'%':'0%',d.kosten>0?formatEuro(d.kosten):'€0,00'])
+  ]);
+  ws2['!cols']=[16,10,13,12,10,10,14].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws2, 'Per monteur');
+
+  // Tabblad 3: Per automaat
+  const automaten = {};
+  data.forEach(x=>{
+    const nr=x.automaatnr||'?';
+    if(!automaten[nr]) automaten[nr]={nr,locatie:x.locatie||'',zone:x.zone||'',beurten:0,score:0,kosten:0,laatste:''};
+    automaten[nr].beurten++;
+    automaten[nr].score+=(x.pct||0);
+    automaten[nr].kosten+=(x.totaal_kosten||0);
+    if(!automaten[nr].laatste||x.datum>automaten[nr].laatste) automaten[nr].laatste=x.datum||'';
+  });
+  const ws3 = XLSX.utils.aoa_to_sheet([
+    ['CWT S3 Onderhoud — Per automaat'], [`Gegenereerd: ${vandaag}`], [],
+    ['Automaat','Locatie','Zone','Beurten','Gem. %','Kosten','Laatste beurt'],
+    ...Object.values(automaten).sort((a,b)=>b.beurten-a.beurten).map(d=>[d.nr,d.locatie,d.zone,d.beurten,d.beurten?Math.round(d.score/d.beurten)+'%':'0%',d.kosten>0?formatEuro(d.kosten):'',d.laatste])
+  ]);
+  ws3['!cols']=[12,38,8,10,10,12,12].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws3, 'Per automaat');
+
+  // Tabblad 4: Maandoverzicht
+  const maanden = {};
+  data.forEach(x=>{
+    const m=(x.datum||'').slice(0,7);if(!m)return;
+    if(!maanden[m])maanden[m]={beurten:0,goed:0,af:0,score:0,kosten:0,graffiti:0,vuurwerk:0};
+    maanden[m].beurten++;maanden[m].score+=(x.pct||0);maanden[m].kosten+=(x.totaal_kosten||0);
+    if((x.status||'ingediend')==='goedgekeurd')maanden[m].goed++;
+    if((x.status||'ingediend')==='afgekeurd')maanden[m].af++;
+    const r=x.cos_remarks||{};
+    if(r['cos_graffiti']==='Ja er is Graffiti'||r[1]==='Ja er is Graffiti')maanden[m].graffiti++;
+    const v=r['cos_vuurwerk']||r[8]||'';if(v==='Nee ontbreekt'||v.includes('schade'))maanden[m].vuurwerk++;
+  });
+  const ws4 = XLSX.utils.aoa_to_sheet([
+    ['CWT S3 Onderhoud — Maandoverzicht'], [`Gegenereerd: ${vandaag}`], [],
+    ['Maand','Beurten','Goedgekeurd','Afgekeurd','Gem. %','Kosten','Graffiti','Vuurwerk'],
+    ...Object.entries(maanden).sort((a,b)=>b[0].localeCompare(a[0])).map(([m,d])=>{
+      const[jaar,maand]=m.split('-');
+      return[MAANDEN[parseInt(maand)-1]+' '+jaar,d.beurten,d.goed,d.af,d.beurten?Math.round(d.score/d.beurten)+'%':'0%',d.kosten>0?formatEuro(d.kosten):'',d.graffiti||'',d.vuurwerk||''];
+    })
+  ]);
+  ws4['!cols']=[16,10,13,12,10,12,10,10].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws4, 'Maandoverzicht');
+
+  // Tabblad 5: Graffiti
+  const graffiti = data.filter(x=>{const r=x.cos_remarks||{};return r['cos_graffiti']==='Ja er is Graffiti'||r[1]==='Ja er is Graffiti';});
+  const ws5 = XLSX.utils.aoa_to_sheet([
+    ['CWT S3 Onderhoud — Graffiti meldingen'], [`Gegenereerd: ${vandaag} · ${graffiti.length} meldingen`], [],
+    ['Datum','Automaat','Locatie','Zone','Monteur','Doorgegeven'],
+    ...graffiti.map(x=>[x.datum||'',x.automaatnr||'',x.locatie||'',x.zone||'',x.mobilist||'',x.graffiti_doorgegeven?'Ja':'Nee'])
+  ]);
+  ws5['!cols']=[12,12,38,8,14,12].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws5, 'Graffiti');
+
+  // Tabblad 6: Vuurwerkkap
+  const vuurwerk = data.filter(x=>{const v=(x.cos_remarks||{})['cos_vuurwerk']||(x.cos_remarks||{})[8]||'';return v==='Nee ontbreekt'||v==='Ja aanwezig maar met schade';});
+  const ws6 = XLSX.utils.aoa_to_sheet([
+    ['CWT S3 Onderhoud — Vuurwerkkap meldingen'], [`Gegenereerd: ${vandaag} · ${vuurwerk.length} meldingen`], [],
+    ['Datum','Automaat','Locatie','Zone','Monteur','Status kap'],
+    ...vuurwerk.map(x=>[x.datum||'',x.automaatnr||'',x.locatie||'',x.zone||'',x.mobilist||'',(x.cos_remarks||{})['cos_vuurwerk']||(x.cos_remarks||{})[8]||''])
+  ]);
+  ws6['!cols']=[12,12,38,8,14,24].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws6, 'Vuurwerkkap');
+
+  // Tabblad 7: Vervangen onderdelen
+  const alleOnderdelen = [];
+  data.forEach(x=>{(x.onderdelen||[]).forEach(o=>alleOnderdelen.push([x.datum||'',x.automaatnr||'',x.mobilist||'',o.naam||'',o.nr||'',(o.aantal||1),formatEuro(o.totaal||0)]));});
+  const ws7 = XLSX.utils.aoa_to_sheet([
+    ['CWT S3 Onderhoud — Vervangen onderdelen'], [`Gegenereerd: ${vandaag} · ${alleOnderdelen.length} regels`], [],
+    ['Datum','Automaat','Monteur','Onderdeel','Artikelnr.','Aantal','Kosten'],
+    ...alleOnderdelen
+  ]);
+  ws7['!cols']=[12,12,14,40,14,8,12].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws7, 'Onderdelen');
+
+  // Tabblad 8: Zones
+  const zonesData = {};
+  AUTOMATEN.forEach(a=>{
+    if(!zonesData[a.Node]) zonesData[a.Node]={zone:a.Node,automaten:0,beurten:0,score:0,achter:0};
+    zonesData[a.Node].automaten++;
+  });
+  const grens = new Date(Date.now()-30*24*60*60*1000).toISOString().split('T')[0];
+  const laatste={};
+  data.forEach(x=>{if(x.automaatnr&&x.datum&&(!laatste[x.automaatnr]||x.datum>laatste[x.automaatnr]))laatste[x.automaatnr]=x.datum;});
+  data.forEach(x=>{const z=x.zone||'?';if(zonesData[z]){zonesData[z].beurten++;zonesData[z].score+=(x.pct||0);}});
+  AUTOMATEN.forEach(a=>{const d=laatste[a.automaatnr];if(!d||d<grens){if(zonesData[a.Node])zonesData[a.Node].achter++;}});
+  const ws8 = XLSX.utils.aoa_to_sheet([
+    ['CWT S3 Onderhoud — Zones overzicht'], [`Gegenereerd: ${vandaag}`], [],
+    ['Zone','Automaten','Beurten','Gem. %','Achterstallig'],
+    ...Object.values(zonesData).sort((a,b)=>Number(a.zone)-Number(b.zone)).map(d=>[d.zone,d.automaten,d.beurten,d.beurten?Math.round(d.score/d.beurten)+'%':'0%',d.achter])
+  ]);
+  ws8['!cols']=[8,12,10,10,12].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws8, 'Zones');
+
+  XLSX.writeFile(wb, `CWT_VolledigRapport_${new Date().toISOString().split('T')[0]}.xlsx`);
+  logAudit(userName,'superbeheerder','export','Volledig rapport geëxporteerd');
+  toast(`📦 Volledig rapport gedownload — 8 tabbladen`);
+}
+
+// ── 2. PRESTATIE PER MONTEUR ────────────────────────────────
+async function buildPrestatieWidget() {
+  await ensureDbData();
+  const el = document.getElementById('prestatie-inhoud');
+  if (!el) return;
+  const data = dbData || [];
+  if (!data.length) { el.innerHTML = `<div class="plan-empty">Geen data</div>`; return; }
+
+  const monteurs = {};
+  data.forEach(x => {
+    const m = x.mobilist || 'Onbekend';
+    if (!monteurs[m]) monteurs[m] = {naam:m, beurten:0, goed:0, af:0, open:0, score:0, kosten:0, automaten:{}, scores:[], datums:[]};
+    monteurs[m].beurten++;
+    monteurs[m].score += (x.pct||0);
+    monteurs[m].scores.push(x.pct||0);
+    monteurs[m].datums.push(x.datum||'');
+    monteurs[m].kosten += (x.totaal_kosten||0);
+    monteurs[m].automaten[x.automaatnr] = (monteurs[m].automaten[x.automaatnr]||0)+1;
+    const s = x.status||'ingediend';
+    if(s==='goedgekeurd')monteurs[m].goed++;
+    else if(s==='afgekeurd')monteurs[m].af++;
+    else monteurs[m].open++;
+  });
+
+  const gesorteerd = Object.values(monteurs).sort((a,b)=>b.beurten-a.beurten);
+  document.getElementById('prestatie-subtitle').textContent = `${gesorteerd.length} monteurs · ${data.length} beurten totaal`;
+
+  el.innerHTML = gesorteerd.map(m => {
+    const gem = m.beurten ? Math.round(m.score/m.beurten) : 0;
+    const gemKleur = gem>=90?'var(--green)':gem>=70?'var(--amber)':'var(--red)';
+    const topAutomaat = Object.entries(m.automaten).sort((a,b)=>b[1]-a[1])[0];
+    const trend = m.scores.length >= 3 ?
+      (m.scores.slice(-3).reduce((s,v)=>s+v,0)/3) - (m.scores.slice(0,3).reduce((s,v)=>s+v,0)/3) : 0;
+    const trendIcon = trend > 5 ? '📈' : trend < -5 ? '📉' : '➡️';
+    return `<div style="padding:16px 22px;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <div style="width:40px;height:40px;border-radius:50%;background:var(--accent-glow);color:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;flex-shrink:0;">${m.naam.charAt(0).toUpperCase()}</div>
+        <div style="flex:1;min-width:160px;">
+          <div style="font-size:15px;font-weight:600;">${m.naam} <span style="font-size:14px;">${trendIcon}</span></div>
+          <div style="font-size:12px;color:var(--text3);">${m.beurten} beurt${m.beurten!==1?'en':''} · Top: ${topAutomaat?topAutomaat[0]+' ('+topAutomaat[1]+'×)':'—'}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;flex:2;min-width:260px;">
+          <div style="text-align:center;">
+            <div style="font-family:var(--mono);font-size:20px;font-weight:700;color:${gemKleur};">${gem}%</div>
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;">Gem. score</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--green);">${m.goed}</div>
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;">Goedgekeurd</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--red);">${m.af}</div>
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;">Afgekeurd</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--amber);">${m.kosten>0?formatEuro(m.kosten):'€0'}</div>
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;">Onderdelen</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function exportPrestatieExcel() {
+  const data = dbData||[];
+  const monteurs = {};
+  data.forEach(x=>{const m=x.mobilist||'Onbekend';if(!monteurs[m])monteurs[m]={naam:m,beurten:0,goed:0,af:0,open:0,score:0,kosten:0};monteurs[m].beurten++;monteurs[m].score+=(x.pct||0);monteurs[m].kosten+=(x.totaal_kosten||0);const s=x.status||'ingediend';if(s==='goedgekeurd')monteurs[m].goed++;else if(s==='afgekeurd')monteurs[m].af++;else monteurs[m].open++;});
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet([['CWT S3 — Prestatie per monteur'],[`Gegenereerd: ${new Date().toLocaleDateString('nl-NL')}`],[],['Monteur','Beurten','Goedgekeurd','Afgekeurd','Open','Gem. %','Kosten'],...Object.values(monteurs).sort((a,b)=>b.beurten-a.beurten).map(m=>[m.naam,m.beurten,m.goed,m.af,m.open,m.beurten?Math.round(m.score/m.beurten)+'%':'0%',m.kosten>0?formatEuro(m.kosten):'€0,00'])]);
+  ws['!cols']=[16,10,13,12,10,10,14].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb,ws,'Prestatie');
+  XLSX.writeFile(wb,`CWT_Prestatie_${new Date().toISOString().split('T')[0]}.xlsx`);
+  toast('📊 Prestatie rapport gedownload');
+}
+
+function exportPrestatiePDF() {
+  const data = dbData||[];
+  const monteurs = {};
+  data.forEach(x=>{const m=x.mobilist||'Onbekend';if(!monteurs[m])monteurs[m]={naam:m,beurten:0,goed:0,af:0,score:0,kosten:0};monteurs[m].beurten++;monteurs[m].score+=(x.pct||0);monteurs[m].kosten+=(x.totaal_kosten||0);const s=x.status||'ingediend';if(s==='goedgekeurd')monteurs[m].goed++;else if(s==='afgekeurd')monteurs[m].af++;});
+  toast('⏳ PDF wordt gegenereerd...');
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const pw=doc.internal.pageSize.getWidth();
+  const vandaag=new Date().toLocaleDateString('nl-NL');
+  doc.setFillColor(30,58,138);doc.roundedRect(10,8,pw-20,14,2,2,'F');
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(13);
+  doc.text('CWT S3 — Prestatie per monteur',pw/2,17,{align:'center'});
+  doc.autoTable({
+    head:[['Monteur','Beurten','Goedgekeurd','Afgekeurd','Open','Gem. %','Onderdelen kosten']],
+    body:Object.values(monteurs).sort((a,b)=>b.beurten-a.beurten).map(m=>[m.naam,m.beurten,m.goed,m.af,m.beurten-m.goed-m.af,m.beurten?Math.round(m.score/m.beurten)+'%':'0%',m.kosten>0?formatEuro(m.kosten):'€0,00']),
+    startY:26,margin:{left:10,right:10},
+    styles:{fontSize:10,cellPadding:3,halign:'center'},
+    headStyles:{fillColor:[30,58,138],textColor:255,fontStyle:'bold'},
+    alternateRowStyles:{fillColor:[248,250,252]},
+    columnStyles:{0:{halign:'left',fontStyle:'bold',cellWidth:30}},
+    didParseCell(d){if(d.column.index===5&&d.section==='body'){const p=parseInt(d.cell.raw);d.cell.styles.textColor=p>=90?[22,163,74]:p>=70?[217,119,6]:[220,38,38];d.cell.styles.fontStyle='bold';}}
+  });
+  doc.setFontSize(7);doc.setTextColor(148,163,184);
+  doc.text(`CWT S3 Onderhoud · ${vandaag}`,pw/2,doc.internal.pageSize.getHeight()-4,{align:'center'});
+  doc.save(`CWT_Prestatie_${new Date().toISOString().split('T')[0]}.pdf`);
+  toast('📄 Prestatie PDF gedownload');
+}
+
+// ── 3. ZONES OVERZICHT ──────────────────────────────────────
+async function buildZonesWidget() {
+  await ensureDbData();
+  const el = document.getElementById('zones-inhoud');
+  if (!el) return;
+  const data = dbData || [];
+
+  const grens = new Date(Date.now()-30*24*60*60*1000).toISOString().split('T')[0];
+  const laatste = {};
+  data.forEach(x=>{if(x.automaatnr&&x.datum&&(!laatste[x.automaatnr]||x.datum>laatste[x.automaatnr]))laatste[x.automaatnr]=x.datum;});
+
+  const zones = {};
+  AUTOMATEN.forEach(a=>{
+    const z = a.Node;
+    if(!zones[z]) zones[z]={zone:z,automaten:0,beurten:0,score:0,kosten:0,achter:0,nooit:0};
+    zones[z].automaten++;
+    const d = laatste[a.automaatnr];
+    if(!d) zones[z].nooit++;
+    else if(d<grens) zones[z].achter++;
+  });
+  data.forEach(x=>{
+    const z=x.zone||'?';
+    if(zones[z]){zones[z].beurten++;zones[z].score+=(x.pct||0);zones[z].kosten+=(x.totaal_kosten||0);}
+  });
+
+  const gesorteerd = Object.values(zones).sort((a,b)=>Number(a.zone)-Number(b.zone));
+  const totAchter = gesorteerd.reduce((s,z)=>s+z.achter+z.nooit,0);
+  document.getElementById('zones-subtitle').textContent = `${gesorteerd.length} zones · ${totAchter} automaten achterstallig`;
+
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr 1fr 1fr;font-size:11px;background:var(--surface2);border-bottom:1px solid var(--border);">
+      ${['Zone','Automaten','Beurten','Gem. %','Kosten','⚠️ Achterstallig'].map(h=>`<div style="padding:8px 16px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;">${h}</div>`).join('')}
+    </div>
+    ${gesorteerd.map((z,i)=>{
+      const gem = z.beurten ? Math.round(z.score/z.beurten) : 0;
+      const gemKleur = gem>=90?'var(--green)':gem>=70?'var(--amber)':'var(--red)';
+      const achterTot = z.achter+z.nooit;
+      const achterPct = Math.round(achterTot/z.automaten*100);
+      return `<div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr 1fr 1fr;border-bottom:1px solid var(--border);background:${i%2?'':'var(--surface2)'};">
+        <div style="padding:10px 16px;font-family:var(--mono);font-weight:700;color:var(--accent);">Zone ${z.zone}</div>
+        <div style="padding:10px 16px;font-family:var(--mono);">${z.automaten}</div>
+        <div style="padding:10px 16px;font-family:var(--mono);color:var(--accent);">${z.beurten}</div>
+        <div style="padding:10px 16px;font-family:var(--mono);color:${gemKleur};font-weight:700;">${z.beurten?gem+'%':'—'}</div>
+        <div style="padding:10px 16px;font-family:var(--mono);color:var(--amber);">${z.kosten>0?formatEuro(z.kosten):'—'}</div>
+        <div style="padding:10px 16px;">
+          ${achterTot>0?`<span style="font-size:12px;font-weight:600;color:var(--red);">${achterTot} (${achterPct}%)</span>${z.nooit>0?`<span style="font-size:11px;color:var(--text3);margin-left:6px;">${z.nooit} nooit</span>`:''}`:
+          `<span style="color:var(--green);font-size:12px;">✅ Alles ok</span>`}
+        </div>
+      </div>`;
+    }).join('')}`;
+}
+
+function exportZonesExcel() {
+  const data=dbData||[];
+  const grens=new Date(Date.now()-30*24*60*60*1000).toISOString().split('T')[0];
+  const laatste={};
+  data.forEach(x=>{if(x.automaatnr&&x.datum&&(!laatste[x.automaatnr]||x.datum>laatste[x.automaatnr]))laatste[x.automaatnr]=x.datum;});
+  const zones={};
+  AUTOMATEN.forEach(a=>{const z=a.Node;if(!zones[z])zones[z]={zone:z,automaten:0,beurten:0,score:0,kosten:0,achter:0,nooit:0};zones[z].automaten++;const d=laatste[a.automaatnr];if(!d)zones[z].nooit++;else if(d<grens)zones[z].achter++;});
+  data.forEach(x=>{const z=x.zone||'?';if(zones[z]){zones[z].beurten++;zones[z].score+=(x.pct||0);zones[z].kosten+=(x.totaal_kosten||0);}});
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet([['CWT S3 — Zones overzicht'],[`Gegenereerd: ${new Date().toLocaleDateString('nl-NL')}`],[],['Zone','Automaten','Beurten','Gem. %','Kosten','Achterstallig','Nooit onderhouden'],
+    ...Object.values(zones).sort((a,b)=>Number(a.zone)-Number(b.zone)).map(z=>[z.zone,z.automaten,z.beurten,z.beurten?Math.round(z.score/z.beurten)+'%':'0%',z.kosten>0?formatEuro(z.kosten):'',z.achter,z.nooit])]);
+  ws['!cols']=[8,12,10,10,12,13,16].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb,ws,'Zones');
+  XLSX.writeFile(wb,`CWT_Zones_${new Date().toISOString().split('T')[0]}.xlsx`);
+  toast('📊 Zones rapport gedownload');
+}
+
+// ── 4. VERDACHTE ACTIVITEIT ─────────────────────────────────
+async function buildVerdachtWidget() {
+  await ensureDbData();
+  const el = document.getElementById('verdacht-inhoud');
+  if (!el) return;
+  const data = dbData || [];
+  const meldingen = [];
+
+  // Check 1: Dubbele automaat op zelfde dag door zelfde monteur
+  const dagCombo = {};
+  data.forEach(x=>{
+    const k = `${x.datum}|${x.automaatnr}|${x.mobilist}`;
+    dagCombo[k] = (dagCombo[k]||[]);
+    dagCombo[k].push(x);
+  });
+  Object.entries(dagCombo).forEach(([k,rijen])=>{
+    if(rijen.length>1){
+      const [datum,automaat,monteur]=k.split('|');
+      meldingen.push({type:'dubbel',ernst:'amber',tekst:`Dubbele inzending: automaat <strong>${automaat}</strong> — ${rijen.length}× op ${datum} door ${monteur||'?'}`,ids:rijen.map(r=>r.id)});
+    }
+  });
+
+  // Check 2: Meer dan 8 beurten op één dag door één monteur
+  const dagMonteur = {};
+  data.forEach(x=>{
+    const k=`${x.datum}|${x.mobilist||'?'}`;
+    dagMonteur[k]=(dagMonteur[k]||0)+1;
+  });
+  Object.entries(dagMonteur).forEach(([k,n])=>{
+    if(n>8){const[datum,monteur]=k.split('|');meldingen.push({type:'veel',ernst:'amber',tekst:`Opvallend veel beurten: <strong>${monteur}</strong> heeft ${n} formulieren ingediend op ${datum}`});}
+  });
+
+  // Check 3: Score altijd 100% (mogelijk niet eerlijk ingevuld)
+  const monteurScores={};
+  data.forEach(x=>{const m=x.mobilist||'?';if(!monteurScores[m])monteurScores[m]={totaal:0,honderd:0};monteurScores[m].totaal++;if((x.pct||0)===100)monteurScores[m].honderd++;});
+  Object.entries(monteurScores).forEach(([m,s])=>{if(s.totaal>=5&&s.honderd/s.totaal>0.9){meldingen.push({type:'score',ernst:'amber',tekst:`Opvallend hoge scores: <strong>${m}</strong> scoort ${Math.round(s.honderd/s.totaal*100)}% van de tijd 100% (${s.honderd}/${s.totaal} beurten)`});}});
+
+  // Check 4: Formulieren met score onder 30%
+  const laagScore = data.filter(x=>(x.pct||0)<30);
+  if(laagScore.length>0){meldingen.push({type:'laag',ernst:'red',tekst:`${laagScore.length} formulier${laagScore.length!==1?'en':''} met score onder 30% — mogelijk onvolledig ingevuld`});}
+
+  // Check 5: Formulieren zonder locatie
+  const geenLocatie = data.filter(x=>!x.locatie||x.locatie==='—');
+  if(geenLocatie.length>0){meldingen.push({type:'locatie',ernst:'amber',tekst:`${geenLocatie.length} formulier${geenLocatie.length!==1?'en':''} zonder locatie`});}
+
+  document.getElementById('verdacht-subtitle').textContent = `${meldingen.length} aandachtspunt${meldingen.length!==1?'en':''} gevonden`;
+
+  if(!meldingen.length){
+    el.innerHTML=`<div class="plan-empty" style="color:var(--green);">✅ Geen verdachte activiteit gevonden</div>`;
+    return;
+  }
+
+  const kleuren={red:'var(--red)',amber:'var(--amber)'};
+  const bgs={red:'var(--red-bg)',amber:'var(--amber-bg)'};
+  el.innerHTML=meldingen.map(m=>`
+    <div style="padding:14px 22px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px;">
+      <span style="font-size:18px;flex-shrink:0;">${m.ernst==='red'?'🚨':'⚠️'}</span>
+      <div style="flex:1;">
+        <div style="font-size:13px;color:var(--text);line-height:1.5;">${m.tekst}</div>
+        ${m.ids?`<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;">${m.ids.map(id=>`<button class="btn btn-ghost" style="font-size:11px;padding:3px 8px;" onclick="openDetail(${id})">Formulier #${id}</button>`).join('')}</div>`:''}</div>
+      <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px;background:${bgs[m.ernst]};color:${kleuren[m.ernst]};flex-shrink:0;">${m.type}</span>
+    </div>`).join('');
+}
+
+
 let clHuidigTab = 'cos';
 
 function clWisselTab(tab) {
