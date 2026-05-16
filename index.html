@@ -2166,13 +2166,18 @@ async function logAudit(gebruiker, rol, actie, details) {
 }
 
 async function renderAuditLog() {
-  document.getElementById('audit-count').textContent = 'Laden...';
+  const countEl = document.getElementById('audit-count');
+  const lijstEl = document.getElementById('audit-lijst');
+  if (countEl) countEl.textContent = 'Laden...';
+  if (lijstEl) lijstEl.innerHTML = `<div class="plan-empty"><span class="spinner"></span> Audit log laden...</div>`;
   try {
     auditData = await sbFetch('rpc/get_audit_log', {method:'POST', body:JSON.stringify({p_limit:500})});
+    if (!Array.isArray(auditData)) auditData = [];
     filterAuditLog();
   } catch(e) {
-    document.getElementById('audit-count').textContent = '❌ Laden mislukt';
-    document.getElementById('audit-lijst').innerHTML = `<div class="plan-empty">Fout bij laden audit log</div>`;
+    console.error('Audit log fout:', e);
+    if (countEl) countEl.textContent = '❌ Laden mislukt';
+    if (lijstEl) lijstEl.innerHTML = `<div class="plan-empty" style="color:var(--red);">❌ Fout bij laden audit log<br><span style="font-size:11px;color:var(--text3);">${e.message||'Onbekende fout'}</span></div>`;
   }
 }
 
@@ -2364,6 +2369,15 @@ function superToggle(id) {
   const flexIds = ['gebruikers','wachtwoorden','instellingen','gegevens'];
   body.style.display = open ? 'none' : (flexIds.includes(id) ? 'flex' : 'block');
   if (chev) chev.style.transform = open ? '' : 'rotate(180deg)';
+  // Auto-laden bij openen
+  if (!open) {
+    if (id === 'auditlog') renderAuditLog();
+    if (id === 'feedback') renderFeedbackOverzicht();
+    if (id === 'checklist') renderChecklistBeheer();
+    if (id === 'prestatie') buildPrestatieWidget();
+    if (id === 'zones') buildZonesWidget();
+    if (id === 'verdacht') buildVerdachtWidget();
+  }
 }
 
 /* ===== SUPERBEHEER EXTRA ===== */
