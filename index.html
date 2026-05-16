@@ -2162,7 +2162,13 @@ function switchTab(tab) {
 let auditData = [];
 
 async function logAudit(gebruiker, rol, actie, details) {
-  try { await sbFetch('audit_log', {method:'POST', body:JSON.stringify({gebruiker, rol, actie, details})}); } catch(_) {}
+  try {
+    await sbFetch('audit_log', {
+      method: 'POST',
+      headers: {...HEADERS, 'Prefer': 'return=minimal'},
+      body: JSON.stringify({gebruiker, rol, actie, details})
+    });
+  } catch(_) {}
 }
 
 async function renderAuditLog() {
@@ -4767,6 +4773,7 @@ async function verzendFeedback() {
     const tab = sessionStorage.getItem('cwt_tab') || 'onbekend';
     await sbFetch('feedback', {
       method: 'POST',
+      headers: {...HEADERS, 'Prefer': 'return=minimal'},
       body: JSON.stringify({
         gebruiker: userName || 'onbekend',
         rol: userRole || 'onbekend',
