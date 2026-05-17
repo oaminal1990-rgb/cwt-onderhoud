@@ -1972,8 +1972,8 @@ function prevStep(){if(currentStep>1){currentStep--;renderStep();}}
 function markDone(s){const el=document.getElementById('step'+s);if(!el)return;el.classList.remove('active');el.classList.add('done');el.querySelector('.step-num').textContent='✓';}
 async function renderStep(){['section-1','section-2','section-3','section-4'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});document.getElementById('section-'+currentStep).style.display='block';document.querySelectorAll('.step').forEach((s,i)=>{s.classList.remove('active');if(i+1<currentStep){s.classList.add('done');s.querySelector('.step-num').textContent='✓';}else{s.classList.remove('done');s.querySelector('.step-num').textContent=i+1;}});const cur=document.getElementById('step'+currentStep);cur.classList.add('active');cur.querySelector('.step-num').textContent=currentStep;document.getElementById('cur-step-label').textContent=currentStep;document.getElementById('btn-prev').style.display=currentStep>1?'':'none';document.getElementById('btn-next').textContent=currentStep===4?'✓ Verzenden':'Volgende →';
 document.getElementById('btn-next').className=currentStep===4?'btn btn-success':'btn btn-primary';
-if(currentStep===2){checklistGeladen=false;await laadChecklistItems();buildChecks(cosItems,'cos-checks','cos','cos-txt','cos-bar',cosItems.length);}
-if(currentStep===3){checklistGeladen=false;await laadChecklistItems();buildChecks(prevItems,'prev-checks','prev','prev-txt','prev-bar',prevItems.length);}
+if(currentStep===2){await laadChecklistItems();buildChecks(cosItems,'cos-checks','cos','cos-txt','cos-bar',cosItems.length);}
+if(currentStep===3){await laadChecklistItems();buildChecks(prevItems,'prev-checks','prev','prev-txt','prev-bar',prevItems.length);}
 if(currentStep===4){updateSummary();renderOnderdelenCategorieen();renderOnderdelenGeselecteerd();updateOnderdelenTotaal();if(!privacyGetoond)setTimeout(toonPrivacyModal,300);}window.scrollTo({top:0,behavior:'smooth'});}
 function handleFotos(input) {
   const files = Array.from(input.files);
@@ -2977,30 +2977,22 @@ async function renderChecklistBeheer() {
     const data = await sbFetch(`checklist_items?sectie=eq.${clHuidigTab}&order=volgorde.asc`);
     const items = Array.isArray(data) ? data : [];
     if (!items.length) { el.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text3);">Geen items gevonden</div>`; return; }
-    el.innerHTML = items.map((item, i) => {
+    el.innerHTML = items.map((item) => {
       const typeLabel = item.type==='select' ? '▼ Dropdown' : item.type==='value' ? '🔢 Getal' : '☑ Toggle';
       const actief = item.actief;
       const opties = Array.isArray(item.opties) ? item.opties : [];
-      const isEerste = i === 0;
-      const isLaatste = i === items.length - 1;
-      return `<div class="cl-item" draggable="true" data-id="${item.id}"
-        style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:${actief?'var(--surface2)':'var(--red-bg)'};margin-bottom:6px;transition:opacity .15s,border-color .15s;"
-        ondragstart="clDragStart(event)" ondragover="clDragOver(event)" ondrop="clDrop(event)" ondragend="clDragEnd(event)">
-        <div style="font-size:18px;color:var(--text3);cursor:grab;flex-shrink:0;padding:0 4px;user-select:none;" title="Slepen om te herordenen">⠿</div>
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:${actief?'var(--surface2)':'var(--red-bg)'};margin-bottom:6px;">
         <div style="flex:1;min-width:0;">
           <div style="font-size:13px;font-weight:500;color:${actief?'var(--text)':'var(--text3)'};">${item.label||'—'}</div>
           <div style="font-size:11px;color:var(--text3);margin-top:2px;">${typeLabel}${item.verplicht?' · <span style="color:var(--red);">Verplicht</span>':''}${!actief?' · <span style="color:var(--red);">Verborgen</span>':''}${item.toon_als?` · <span style="color:var(--accent);">Conditioneel: ${item.toon_als}</span>`:''}</div>
           ${opties.length?`<div style="font-size:11px;color:var(--text3);margin-top:2px;">Opties: ${opties.join(', ')}</div>`:''}
         </div>
-        <div style="display:flex;gap:4px;flex-shrink:0;align-items:center;">
-          <button class="btn btn-ghost" style="font-size:14px;padding:3px 8px;line-height:1;" title="Omhoog" onclick="clVerplaats('${item.id}','omhoog')" ${isEerste?'disabled':''}>↑</button>
-          <button class="btn btn-ghost" style="font-size:14px;padding:3px 8px;line-height:1;" title="Omlaag" onclick="clVerplaats('${item.id}','omlaag')" ${isLaatste?'disabled':''}>↓</button>
+        <div style="display:flex;gap:5px;flex-shrink:0;">
           <button class="btn btn-ghost" style="font-size:11px;padding:4px 8px;" onclick="clToggleActief('${item.id}',${!actief})">${actief?'👁️ Verbergen':'👁️ Tonen'}</button>
           <button class="btn btn-danger" style="font-size:11px;padding:4px 8px;" onclick="clVerwijder('${item.id}','${(item.label||'').replace(/'/g,"\'")}')">🗑</button>
         </div>
       </div>`;
     }).join('');
-    // Herlaad lokale arrays zonder het formulier te verstoren
     const verse = await sbFetch('checklist_items?actief=eq.true&order=sectie.asc,volgorde.asc');
     if (Array.isArray(verse)) {
       cosItems = verse.filter(r=>r.sectie==='cos').map(dbItemNaarCheckItem);
@@ -3013,72 +3005,6 @@ async function renderChecklistBeheer() {
   }
 }
 
-// ── Drag & drop ──────────────────────────────────────────
-let _clDragSrc = null;
-
-function clDragStart(e) {
-  _clDragSrc = e.currentTarget;
-  e.dataTransfer.effectAllowed = 'move';
-  e.dataTransfer.setData('text/plain', e.currentTarget.dataset.id);
-  setTimeout(() => { if(_clDragSrc) _clDragSrc.style.opacity = '0.4'; }, 0);
-}
-
-function clDragOver(e) {
-  e.preventDefault(); e.dataTransfer.dropEffect = 'move';
-  document.querySelectorAll('.cl-item').forEach(el => el.style.borderColor = 'var(--border)');
-  e.currentTarget.style.borderColor = 'var(--accent)';
-}
-
-function clDragEnd(e) {
-  if(_clDragSrc) _clDragSrc.style.opacity = '1';
-  document.querySelectorAll('.cl-item').forEach(el => el.style.borderColor = 'var(--border)');
-  _clDragSrc = null;
-}
-
-async function clDrop(e) {
-  e.preventDefault();
-  const src = _clDragSrc; const dst = e.currentTarget;
-  if (!src || src === dst) { clDragEnd(e); return; }
-  const parent = src.parentNode;
-  const srcIdx = [...parent.children].indexOf(src);
-  const dstIdx = [...parent.children].indexOf(dst);
-  if (srcIdx < dstIdx) parent.insertBefore(src, dst.nextSibling);
-  else parent.insertBefore(src, dst);
-  clDragEnd(e);
-  await clSlaVolgordeOp();
-}
-
-async function clVerplaats(id, richting) {
-  const container = document.getElementById('checklist-beheer-lijst');
-  const items = [...container.querySelectorAll('.cl-item')];
-  const idx = items.findIndex(el => el.dataset.id === id);
-  if (richting === 'omhoog' && idx > 0) items[idx-1].parentNode.insertBefore(items[idx], items[idx-1]);
-  else if (richting === 'omlaag' && idx < items.length-1) items[idx].parentNode.insertBefore(items[idx+1], items[idx]);
-  // Update ↑↓ disabled state
-  const all = [...container.querySelectorAll('.cl-item')];
-  all.forEach((el, i) => {
-    const btns = el.querySelectorAll('button');
-    if(btns[0]) btns[0].disabled = i === 0;
-    if(btns[1]) btns[1].disabled = i === all.length - 1;
-  });
-  await clSlaVolgordeOp();
-}
-
-async function clSlaVolgordeOp() {
-  const container = document.getElementById('checklist-beheer-lijst');
-  const volgorde = [...container.querySelectorAll('.cl-item')].map((el, i) => ({id: el.dataset.id, volgorde: i}));
-  try {
-    await sbFetch('rpc/checklist_reorder', {method:'POST', body:JSON.stringify({p_updates: volgorde})});
-    // ↑↓ knoppen bijwerken
-    const all = [...container.querySelectorAll('.cl-item')];
-    all.forEach((el, i) => {
-      const btns = el.querySelectorAll('button');
-      if(btns[0]) btns[0].disabled = i === 0;
-      if(btns[1]) btns[1].disabled = i === all.length - 1;
-    });
-    toast('✅ Volgorde opgeslagen');
-  } catch(e) { toast('❌ Opslaan mislukt'); console.error(e); }
-}
 
 
 async function clVoegToe() {
