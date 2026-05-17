@@ -1972,8 +1972,8 @@ function prevStep(){if(currentStep>1){currentStep--;renderStep();}}
 function markDone(s){const el=document.getElementById('step'+s);if(!el)return;el.classList.remove('active');el.classList.add('done');el.querySelector('.step-num').textContent='✓';}
 async function renderStep(){['section-1','section-2','section-3','section-4'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});document.getElementById('section-'+currentStep).style.display='block';document.querySelectorAll('.step').forEach((s,i)=>{s.classList.remove('active');if(i+1<currentStep){s.classList.add('done');s.querySelector('.step-num').textContent='✓';}else{s.classList.remove('done');s.querySelector('.step-num').textContent=i+1;}});const cur=document.getElementById('step'+currentStep);cur.classList.add('active');cur.querySelector('.step-num').textContent=currentStep;document.getElementById('cur-step-label').textContent=currentStep;document.getElementById('btn-prev').style.display=currentStep>1?'':'none';document.getElementById('btn-next').textContent=currentStep===4?'✓ Verzenden':'Volgende →';
 document.getElementById('btn-next').className=currentStep===4?'btn btn-success':'btn btn-primary';
-if(currentStep===2){await laadChecklistItems();buildChecks(cosItems,'cos-checks','cos','cos-txt','cos-bar',cosItems.length);}
-if(currentStep===3){await laadChecklistItems();buildChecks(prevItems,'prev-checks','prev','prev-txt','prev-bar',prevItems.length);}
+if(currentStep===2){checklistGeladen=false;await laadChecklistItems();buildChecks(cosItems,'cos-checks','cos','cos-txt','cos-bar',cosItems.length);}
+if(currentStep===3){checklistGeladen=false;await laadChecklistItems();buildChecks(prevItems,'prev-checks','prev','prev-txt','prev-bar',prevItems.length);}
 if(currentStep===4){updateSummary();renderOnderdelenCategorieen();renderOnderdelenGeselecteerd();updateOnderdelenTotaal();if(!privacyGetoond)setTimeout(toonPrivacyModal,300);}window.scrollTo({top:0,behavior:'smooth'});}
 function handleFotos(input) {
   const files = Array.from(input.files);
@@ -3069,26 +3069,13 @@ async function clSlaVolgordeOp() {
   const volgorde = [...container.querySelectorAll('.cl-item')].map((el, i) => ({id: el.dataset.id, volgorde: i}));
   try {
     await sbFetch('rpc/checklist_reorder', {method:'POST', body:JSON.stringify({p_updates: volgorde})});
-    // Herlaad ALLEEN de beheer-lijst — reset NIET checklistGeladen want dat breekt het formulier
-    // De volgende keer dat de gebruiker een formulier opent wordt de checklist automatisch herlaaden
-    checklistGeladen = false;
-    const nieuweItems = await sbFetch('checklist_items?actief=eq.true&order=sectie.asc,volgorde.asc');
-    if (Array.isArray(nieuweItems)) {
-      cosItems = nieuweItems.filter(r=>r.sectie==='cos').map(dbItemNaarCheckItem);
-      prevItems = nieuweItems.filter(r=>r.sectie==='prev').map(dbItemNaarCheckItem);
-      checklistGeladen = true;
-    }
-    // Herrender de beheer-lijst zonder laadChecklistItems aan te raken
-    const data = await sbFetch(`checklist_items?sectie=eq.${clHuidigTab}&order=volgorde.asc`);
-    const items = Array.isArray(data) ? data : [];
-    if (container && items.length) {
-      const all = [...container.querySelectorAll('.cl-item')];
-      all.forEach((el, i) => {
-        const btns = el.querySelectorAll('button');
-        if(btns[0]) btns[0].disabled = i === 0;
-        if(btns[1]) btns[1].disabled = i === all.length - 1;
-      });
-    }
+    // ↑↓ knoppen bijwerken
+    const all = [...container.querySelectorAll('.cl-item')];
+    all.forEach((el, i) => {
+      const btns = el.querySelectorAll('button');
+      if(btns[0]) btns[0].disabled = i === 0;
+      if(btns[1]) btns[1].disabled = i === all.length - 1;
+    });
     toast('✅ Volgorde opgeslagen');
   } catch(e) { toast('❌ Opslaan mislukt'); console.error(e); }
 }
