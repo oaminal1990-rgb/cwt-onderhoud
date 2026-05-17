@@ -88,7 +88,7 @@ textarea.remarks-input{width:200px;}
 .remarks-input:focus{border-color:var(--accent);}
 .remarks-input::placeholder{color:var(--text3);}
 select.remarks-input{width:200px;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239095b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
-select.remarks-input-required{border-color:var(--amber);}
+select.remarks-input-required{border-color:var(--border);}
 .toggle{position:relative;width:42px;height:24px;flex-shrink:0;margin-top:1px;}
 .toggle input{opacity:0;width:0;height:0;position:absolute;}
 .toggle-track{position:absolute;inset:0;background:var(--surface2);border-radius:12px;border:1.5px solid var(--border);cursor:pointer;transition:all .2s;}
@@ -1640,6 +1640,13 @@ const SB_URL='https://lhdmbyiwdnqllcdfxgru.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxoZG1ieWl3ZG5xbGxjZGZ4Z3J1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4OTA3ODUsImV4cCI6MjA5MzQ2Njc4NX0.69mfYoK0Zm--sCW6z3E8ouLJlFT0m1l2dP3RskZf9h4';
 const HEADERS={'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=representation'};
 // Helper: zoek waarde op via ID-key óf index (voor backwards compatibility)
+// Helper: check of een item data heeft in het formulier (om nieuwe vragen te verbergen in oude formulieren)
+function itemHeeftData(data, item, i) {
+  if (!data) return false;
+  const k = typeof item==='object' && item.id ? item.id : i;
+  return data[k] !== undefined || data[i] !== undefined;
+}
+
 function cosVal(data, item, i) { 
   if(!data) return false;
   const k = typeof item==='object'&&item.id ? item.id : i;
@@ -3630,10 +3637,10 @@ async function exportEnkelExcel(e, id) {
     ['Bijzonderheden',x.bijzonderheden||''],['Afkeur reden',x.afkeur_reden||''],
     [],
     ['COSMETISCH ONDERHOUD','Afgevinkt','Opmerking'],
-    ...cosItems.filter((item,i)=>isZichtbaar(item,x.cos,x.prev)).map((item,i)=>{const oi=cosItems.indexOf(item);const label=typeof item==='object'?item.label:item;return[label,cosVal(x.cos,item,oi)?'✓':'✗',cosRem(x.cos_remarks,item,oi)];}),
+    ...cosItems.filter((item,i)=>isZichtbaar(item,x.cos,x.prev)&&itemHeeftData(x.cos,item,cosItems.indexOf(item))).map((item,i)=>{const oi=cosItems.indexOf(item);const label=typeof item==='object'?item.label:item;return[label,cosVal(x.cos,item,oi)?'✓':'✗',cosRem(x.cos_remarks,item,oi)];}),
     [],
     ['PREVENTIEF ONDERHOUD','Afgevinkt','Opmerking'],
-    ...prevItems.filter((item,i)=>isZichtbaar(item,x.cos,x.prev)).map((item,i)=>{const oi=prevItems.indexOf(item);const label=typeof item==='object'?item.label:item;return[label,cosVal(x.prev,item,oi)?'✓':'✗',cosRem(x.prev_remarks,item,oi)];}),
+    ...prevItems.filter((item,i)=>isZichtbaar(item,x.cos,x.prev)&&itemHeeftData(x.prev,item,prevItems.indexOf(item))).map((item,i)=>{const oi=prevItems.indexOf(item);const label=typeof item==='object'?item.label:item;return[label,cosVal(x.prev,item,oi)?'✓':'✗',cosRem(x.prev_remarks,item,oi)];}),
   ]);
   ws['!cols']=[{wch:44},{wch:10},{wch:32}];
   ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:2}},{s:{r:1,c:0},e:{r:1,c:2}}];
@@ -3881,6 +3888,7 @@ async function exportEnkelPDF(e, id) {
     body: cosItems.map((item,i)=>{
       const label=typeof item==='object'?item.label:item;
       if(!isZichtbaar(item,x.cos,x.prev)) return null;
+      if(!itemHeeftData(x.cos,item,i)) return null;
       const ok=cosVal(x.cos,item,i);
       return[label, ok?'✓ Afgevinkt':'✗ Niet afgevinkt', cosRem(x.cos_remarks,item,i)];
     }).filter(Boolean),
@@ -3901,6 +3909,7 @@ async function exportEnkelPDF(e, id) {
     body: prevItems.map((item,i)=>{
       const label=typeof item==='object'?item.label:item;
       if(!isZichtbaar(item,x.cos,x.prev)) return null;
+      if(!itemHeeftData(x.prev,item,i)) return null;
       const ok=cosVal(x.prev,item,i);
       const rem=cosRem(x.prev_remarks,item,i);
       const accuNote = (typeof item==='object'&&item.hasValue&&x.accu_val)?x.accu_val+' V':'';
@@ -3975,10 +3984,10 @@ async function openDetail(id){
   const cos=x.cos||{},cosR=x.cos_remarks||{};
   const prev=x.prev||{},prevR=x.prev_remarks||{};
   html+='<div class="detail-section"><div class="detail-section-title">Cosmetisch onderhoud</div>';
-  cosItems.forEach((item,i)=>{if(!isZichtbaar(item,cos,prev)) return;const label=typeof item==='object'?item.label:item;const ok=cosVal(cos,item,i);const rem=cosRem(cosR,item,i);html+=`<div class="detail-check-row"><div class="check-dot ${ok?'ok':'nok'}"></div><div class="dcheck-label">${label}</div>${rem?`<div class="dcheck-remark">${rem}</div>`:''}</div>`;});
+  cosItems.forEach((item,i)=>{if(!isZichtbaar(item,cos,prev)) return;if(!itemHeeftData(cos,item,i)) return;const label=typeof item==='object'?item.label:item;const ok=cosVal(cos,item,i);const rem=cosRem(cosR,item,i);html+=`<div class="detail-check-row"><div class="check-dot ${ok?'ok':'nok'}"></div><div class="dcheck-label">${label}</div>${rem?`<div class="dcheck-remark">${rem}</div>`:''}</div>`;});
   html+='</div>';
   html+='<div class="detail-section"><div class="detail-section-title">Preventief onderhoud</div>';
-  prevItems.forEach((item,i)=>{if(!isZichtbaar(item,cos,prev)) return;const label=typeof item==='object'?item.label:item;const ok=cosVal(prev,item,i);const rem=cosRem(prevR,item,i);const accuNote=(typeof item==='object'&&item.hasValue&&x.accu_val)?`<div class="dcheck-remark">${x.accu_val} V</div>`:'';html+=`<div class="detail-check-row"><div class="check-dot ${ok?'ok':'nok'}"></div><div class="dcheck-label">${label}</div>${rem?`<div class="dcheck-remark">${rem}</div>`:''}${accuNote}</div>`;});
+  prevItems.forEach((item,i)=>{if(!isZichtbaar(item,cos,prev)) return;if(!itemHeeftData(prev,item,i)) return;const label=typeof item==='object'?item.label:item;const ok=cosVal(prev,item,i);const rem=cosRem(prevR,item,i);const accuNote=(typeof item==='object'&&item.hasValue&&x.accu_val)?`<div class="dcheck-remark">${x.accu_val} V</div>`:'';html+=`<div class="detail-check-row"><div class="check-dot ${ok?'ok':'nok'}"></div><div class="dcheck-label">${label}</div>${rem?`<div class="dcheck-remark">${rem}</div>`:''}${accuNote}</div>`;});
   html+='</div>';
   if(x.bijzonderheden)html+=`<div class="detail-notes"><div class="detail-section-title">Overige bijzonderheden</div><div class="detail-notes-text">${x.bijzonderheden}</div></div>`;
   if(x.kwitantie||x.fotos?.length||x.foto_base64){
@@ -5665,6 +5674,7 @@ function openMijnDetail(id) {
   html += '<div class="detail-section"><div class="detail-section-title">Cosmetisch onderhoud</div>';
   cosItems.forEach((item,i)=>{
     if(!isZichtbaar(item,cos,prev)) return;
+    if(!itemHeeftData(cos,item,i)) return;
     const label=typeof item==='object'?item.label:item;
     const ok=cosVal(cos,item,i); const rem=cosRem(cosR,item,i);
     html+=`<div class="detail-check-row"><div class="check-dot ${ok?'ok':'nok'}"></div><div class="dcheck-label">${label}</div>${rem?`<div class="dcheck-remark">${rem}</div>`:''}</div>`;
@@ -5674,6 +5684,7 @@ function openMijnDetail(id) {
   html += '<div class="detail-section"><div class="detail-section-title">Preventief onderhoud</div>';
   prevItems.forEach((item,i)=>{
     if(!isZichtbaar(item,cos,prev)) return;
+    if(!itemHeeftData(prev,item,i)) return;
     const label=typeof item==='object'?item.label:item;
     const ok=cosVal(prev,item,i); const rem=cosRem(prevR,item,i);
     const accuNote=(typeof item==='object'&&item.hasValue&&x.accu_val)?`<div class="dcheck-remark">${x.accu_val} V</div>`:'';
