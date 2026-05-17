@@ -3000,8 +3000,13 @@ async function renderChecklistBeheer() {
         </div>
       </div>`;
     }).join('');
-    checklistGeladen = false;
-    await laadChecklistItems();
+    // Herlaad lokale arrays zonder het formulier te verstoren
+    const verse = await sbFetch('checklist_items?actief=eq.true&order=sectie.asc,volgorde.asc');
+    if (Array.isArray(verse)) {
+      cosItems = verse.filter(r=>r.sectie==='cos').map(dbItemNaarCheckItem);
+      prevItems = verse.filter(r=>r.sectie==='prev').map(dbItemNaarCheckItem);
+      checklistGeladen = true;
+    }
   } catch(e) {
     console.error('Checklist fout:', e);
     el.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red);">❌ Laden mislukt<br><span style="font-size:11px;color:var(--text3);">${e.message||''}</span></div>`;
@@ -3064,8 +3069,26 @@ async function clSlaVolgordeOp() {
   const volgorde = [...container.querySelectorAll('.cl-item')].map((el, i) => ({id: el.dataset.id, volgorde: i}));
   try {
     await sbFetch('rpc/checklist_reorder', {method:'POST', body:JSON.stringify({p_updates: volgorde})});
+    // Herlaad ALLEEN de beheer-lijst — reset NIET checklistGeladen want dat breekt het formulier
+    // De volgende keer dat de gebruiker een formulier opent wordt de checklist automatisch herlaaden
     checklistGeladen = false;
-    await laadChecklistItems();
+    const nieuweItems = await sbFetch('checklist_items?actief=eq.true&order=sectie.asc,volgorde.asc');
+    if (Array.isArray(nieuweItems)) {
+      cosItems = nieuweItems.filter(r=>r.sectie==='cos').map(dbItemNaarCheckItem);
+      prevItems = nieuweItems.filter(r=>r.sectie==='prev').map(dbItemNaarCheckItem);
+      checklistGeladen = true;
+    }
+    // Herrender de beheer-lijst zonder laadChecklistItems aan te raken
+    const data = await sbFetch(`checklist_items?sectie=eq.${clHuidigTab}&order=volgorde.asc`);
+    const items = Array.isArray(data) ? data : [];
+    if (container && items.length) {
+      const all = [...container.querySelectorAll('.cl-item')];
+      all.forEach((el, i) => {
+        const btns = el.querySelectorAll('button');
+        if(btns[0]) btns[0].disabled = i === 0;
+        if(btns[1]) btns[1].disabled = i === all.length - 1;
+      });
+    }
     toast('✅ Volgorde opgeslagen');
   } catch(e) { toast('❌ Opslaan mislukt'); console.error(e); }
 }
