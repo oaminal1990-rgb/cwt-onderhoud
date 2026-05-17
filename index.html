@@ -1767,8 +1767,14 @@ let checklistGeladen = false;
 function dbItemNaarCheckItem(row) {
   const base = { id: row.id, label: row.label };
   if (row.toon_als) base.toon_als = row.toon_als;
+  // Zorg dat opties altijd een array is
+  let opties = row.opties;
+  if (typeof opties === 'string') {
+    try { opties = JSON.parse(opties); } catch(_) { opties = []; }
+  }
+  if (!Array.isArray(opties)) opties = [];
   if (row.type === 'select') {
-    return { ...base, hasSelect: true, required: row.verplicht, options: row.opties || [] };
+    return { ...base, hasSelect: true, required: row.verplicht, options: opties };
   } else if (row.type === 'value') {
     return { ...base, hasValue: true };
   } else {
