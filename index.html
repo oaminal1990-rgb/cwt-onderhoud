@@ -3063,7 +3063,7 @@ async function clSlaVolgordeOp() {
   const container = document.getElementById('checklist-beheer-lijst');
   const volgorde = [...container.querySelectorAll('.cl-item')].map((el, i) => ({id: el.dataset.id, volgorde: i}));
   try {
-    await sbFetch('rpc/checklist_reorder', {method:'POST', body:JSON.stringify({p_updates: JSON.stringify(volgorde)})});
+    await sbFetch('rpc/checklist_reorder', {method:'POST', body:JSON.stringify({p_updates: volgorde})});
     checklistGeladen = false;
     await laadChecklistItems();
     toast('✅ Volgorde opgeslagen');
