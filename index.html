@@ -11,6 +11,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
 :root{--bg:#0f1117;--surface:#1a1d27;--surface2:#232636;--border:#2e3248;--border-hover:#4a4f72;--accent:#4f6ef7;--accent-dim:#3a52c4;--accent-glow:rgba(79,110,247,0.15);--green:#22c55e;--green-bg:rgba(34,197,94,0.12);--amber:#f59e0b;--amber-bg:rgba(245,158,11,0.12);--red:#ef4444;--red-bg:rgba(239,68,68,0.12);--text:#e8eaf6;--text2:#9095b8;--text3:#5c6080;--font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;}
+[data-theme="light"]{--bg:#f0f2f8;--surface:#ffffff;--surface2:#f5f6fb;--border:#d8dbe8;--border-hover:#9095b8;--accent:#3b57d4;--accent-dim:#2a44b0;--accent-glow:rgba(59,87,212,0.12);--green:#16a34a;--green-bg:rgba(22,163,74,0.1);--amber:#d97706;--amber-bg:rgba(217,119,6,0.1);--red:#dc2626;--red-bg:rgba(220,38,38,0.1);--text:#1a1d27;--text2:#4a4f72;--text3:#7c809a;}
 *{box-sizing:border-box;margin:0;padding:0;}
 /* Scrollbars — donker passend bij de app */
 ::-webkit-scrollbar{width:6px;height:6px;}
@@ -462,6 +463,8 @@ select.filter-input option{background:var(--surface2);}
   <button class="btn btn-ghost btn-new-header" onclick="newForm()">+ Nieuw</button>
   <button class="btn btn-ghost btn-vernieuw-header" onclick="vernieuwHuidigTab()" title="Vernieuwen" style="font-size:15px;padding:6px 10px;color:var(--text3);display:none;">↻</button>
   <button class="btn btn-ghost btn-feedback-header" onclick="openFeedbackModal()" title="Feedback" style="font-size:15px;padding:6px 10px;color:var(--text3);display:none;">📢</button>
+  <div id="offline-banner" style="display:none;background:var(--amber-bg);border:1px solid var(--amber);color:var(--amber);font-size:11px;padding:4px 10px;border-radius:6px;font-weight:600;">📶 Offline</div>
+  <button class="btn btn-ghost" id="btn-theme" onclick="toggleTheme()" style="font-size:15px;padding:6px 10px;" title="Light/dark mode">🌙</button>
   <button class="btn btn-ghost" id="btn-uitloggen" onclick="uitloggen()" style="font-size:13px;padding:6px 12px;color:var(--text3);">🚪 <span class="btn-uitloggen-label">Uitloggen</span></button>
 </div>
 <div id="db-banner-wrap"></div>
@@ -552,6 +555,10 @@ select.filter-input option{background:var(--surface2);}
       </div>
       <div class="card">
         <div class="card-header"><div class="card-icon green">✅</div><div><div class="card-title">Formulier verzenden</div><div class="card-subtitle">Jouw formulier wordt verzonden naar de beheerder</div></div></div>
+        <div class="notes-area" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+          <button class="btn btn-ghost" onclick="slaConceptOp()" style="font-size:13px;">💾 Concept opslaan</button>
+          <span id="concept-status" style="font-size:12px;color:var(--text3);align-self:center;"></span>
+        </div>
         <div class="notes-area" style="display:flex;gap:10px;flex-wrap:wrap;">
           <button class="btn btn-success" id="btn-save" onclick="saveForm()" style="flex:2;min-height:44px;">✓ Opslaan &amp; verzenden</button>
         </div>
@@ -591,7 +598,28 @@ select.filter-input option{background:var(--surface2);}
         <button class="btn btn-ghost" onclick="exportMijnExcel()" title="Exporteer mijn formulieren naar Excel" style="font-size:13px;">📊 Excel</button>
         <button class="btn btn-ghost" onclick="exportMijnPDF()" title="Exporteer mijn formulieren naar PDF" style="font-size:13px;">📄 PDF</button>
       </div>
-      <button class="btn btn-ghost" onclick="renderMijn()">↻ Vernieuwen</button>
+    </div>
+
+    <!-- Mijn statistieken -->
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-header" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="cursor:pointer;">
+        <div class="card-icon" style="background:var(--accent-glow);">📈</div>
+        <div><div class="card-title">Mijn statistieken</div><div class="card-subtitle" id="mijn-stats-subtitle">Persoonlijk overzicht</div></div>
+        <span style="margin-left:auto;font-size:18px;color:var(--text3);">▼</span>
+      </div>
+      <div style="display:none;padding:16px 20px;">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;" id="mijn-stats-grid">
+          <div class="kpi"><div class="kpi-val blue" id="stat-maand">—</div><div class="kpi-label">Deze maand</div></div>
+          <div class="kpi"><div class="kpi-val green" id="stat-gem-score">—</div><div class="kpi-label">Gem. score</div></div>
+          <div class="kpi"><div class="kpi-val amber" id="stat-streak">—</div><div class="kpi-label">Actieve dagen</div></div>
+          <div class="kpi"><div class="kpi-val" id="stat-record">—</div><div class="kpi-label">Beste maand</div></div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-ghost" style="font-size:12px;" onclick="exportPerMonteur(userName)">📊 Export mijn formulieren</button>
+          <button class="btn btn-ghost" style="font-size:12px;" onclick="snelleHerstart()">⚡ Snelle herstart</button>
+          <button class="btn btn-ghost" style="font-size:12px;" onclick="laadConcept()">📝 Concept laden</button>
+        </div>
+      </div>
     </div>
 
     <!-- Status samenvatting -->
@@ -1004,6 +1032,110 @@ select.filter-input option{background:var(--surface2);}
       </div>
       <div id="audit-lijst"></div>
       </div><!-- /sb-body-auditlog -->
+    </div>
+
+    <!-- ARCHIEF -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header" onclick="superToggle('archief')" style="cursor:pointer;user-select:none;">
+        <div class="card-icon" style="background:var(--surface2);">📦</div>
+        <div><div class="card-title">Archief</div><div class="card-subtitle" id="archief-count">Gearchiveerde formulieren</div></div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;" onclick="event.stopPropagation()">
+          <button class="btn btn-ghost" onclick="renderArchief()" style="font-size:12px;">↻</button>
+          <button class="btn btn-ghost" onclick="exportArchiefExcel()" style="font-size:12px;">📊 Excel</button>
+        </div>
+        <span id="sb-chev-archief" style="margin-left:8px;font-size:18px;color:var(--text3);transition:transform .2s;">▼</span>
+      </div>
+      <div id="sb-body-archief" style="display:none;">
+        <div class="filter-bar" style="gap:8px;">
+          <input class="filter-input" id="archief-search" placeholder="Zoek in archief..." style="flex:1;" oninput="filterArchief()"/>
+        </div>
+        <div id="archief-lijst" style="max-height:400px;overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- SLA RAPPORT -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header" onclick="superToggle('sla')" style="cursor:pointer;user-select:none;">
+        <div class="card-icon green">📋</div>
+        <div><div class="card-title">SLA Rapport</div><div class="card-subtitle">Automaten bezocht binnen 30/60/90 dagen</div></div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;" onclick="event.stopPropagation()">
+          <button class="btn btn-ghost" onclick="buildSlaWidget()" style="font-size:12px;">↻</button>
+          <button class="btn btn-ghost" onclick="exportSlaExcel()" style="font-size:12px;">📊 Excel</button>
+          <button class="btn btn-ghost" onclick="exportSlaPDF()" style="font-size:12px;">📄 PDF</button>
+        </div>
+        <span id="sb-chev-sla" style="margin-left:8px;font-size:18px;color:var(--text3);transition:transform .2s;">▼</span>
+      </div>
+      <div id="sb-body-sla" style="display:none;padding:20px;">
+        <div id="sla-inhoud"><div class="plan-empty">Klik ↻ om te laden</div></div>
+      </div>
+    </div>
+
+    <!-- AUTOMAAT STATUS -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header" onclick="superToggle('autostatus')" style="cursor:pointer;user-select:none;">
+        <div class="card-icon" style="background:var(--red-bg);">🚦</div>
+        <div><div class="card-title">Automaat status overzicht</div><div class="card-subtitle">Gesorteerd op risico — nooit/zelden bezocht</div></div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;" onclick="event.stopPropagation()">
+          <button class="btn btn-ghost" onclick="buildAutostatuWidget()" style="font-size:12px;">↻</button>
+          <button class="btn btn-ghost" onclick="exportAutostatusExcel()" style="font-size:12px;">📊 Excel</button>
+          <button class="btn btn-ghost" onclick="exportAutostatusPDF()" style="font-size:12px;">📄 PDF</button>
+        </div>
+        <span id="sb-chev-autostatus" style="margin-left:8px;font-size:18px;color:var(--text3);transition:transform .2s;">▼</span>
+      </div>
+      <div id="sb-body-autostatus" style="display:none;padding:20px;">
+        <div id="autostatus-inhoud"><div class="plan-empty">Klik ↻ om te laden</div></div>
+      </div>
+    </div>
+
+    <!-- AUTOMAAT DOSSIER -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header" onclick="superToggle('dossier')" style="cursor:pointer;user-select:none;">
+        <div class="card-icon" style="background:var(--accent-glow);">🗂️</div>
+        <div><div class="card-title">Automaat dossier</div><div class="card-subtitle">Alle historische beurten van één automaat</div></div>
+        <span id="sb-chev-dossier" style="margin-left:auto;font-size:18px;color:var(--text3);transition:transform .2s;">▼</span>
+      </div>
+      <div id="sb-body-dossier" style="display:none;padding:20px;">
+        <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+          <input class="filter-input" id="dossier-zoek" placeholder="Automaatnummer..." style="flex:1;font-size:14px;" oninput="zoekDossier()"/>
+          <button class="btn btn-primary" onclick="laadDossier()" style="font-size:13px;">🔍 Zoeken</button>
+          <button class="btn btn-ghost" onclick="exportDossierExcel()" style="font-size:12px;">📊 Excel</button>
+        </div>
+        <div id="dossier-inhoud"><div class="plan-empty">Voer een automaatnummer in en klik zoeken</div></div>
+      </div>
+    </div>
+
+    <!-- VERGELIJK PERIODES -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header" onclick="superToggle('vergelijk')" style="cursor:pointer;user-select:none;">
+        <div class="card-icon" style="background:var(--amber-bg);">📊</div>
+        <div><div class="card-title">Vergelijk periodes</div><div class="card-subtitle">Deze maand vs vorige maand per zone</div></div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;" onclick="event.stopPropagation()">
+          <button class="btn btn-ghost" onclick="buildVergelijkWidget()" style="font-size:12px;">↻</button>
+          <button class="btn btn-ghost" onclick="exportVergelijkExcel()" style="font-size:12px;">📊 Excel</button>
+        </div>
+        <span id="sb-chev-vergelijk" style="margin-left:8px;font-size:18px;color:var(--text3);transition:transform .2s;">▼</span>
+      </div>
+      <div id="sb-body-vergelijk" style="display:none;padding:20px;">
+        <div id="vergelijk-inhoud"><div class="plan-empty">Klik ↻ om te laden</div></div>
+      </div>
+    </div>
+
+    <!-- EXPORT PER MONTEUR -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header" onclick="superToggle('exportmont')" style="cursor:pointer;user-select:none;">
+        <div class="card-icon" style="background:var(--green-bg);">👷</div>
+        <div><div class="card-title">Export per monteur</div><div class="card-subtitle">Download alle formulieren van één monteur</div></div>
+        <span id="sb-chev-exportmont" style="margin-left:auto;font-size:18px;color:var(--text3);transition:transform .2s;">▼</span>
+      </div>
+      <div id="sb-body-exportmont" style="display:none;padding:20px;flex-direction:column;gap:12px;">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+          <select class="filter-input" id="export-monteur-keuze" style="flex:1;font-size:14px;">
+            <option value="">— Kies monteur —</option>
+          </select>
+          <button class="btn btn-ghost" onclick="exportPerMonteur(document.getElementById('export-monteur-keuze').value)" style="font-size:12px;">📊 Excel</button>
+          <button class="btn btn-ghost" onclick="exportPerMonteurPDF(document.getElementById('export-monteur-keuze').value)" style="font-size:12px;">📄 PDF</button>
+        </div>
+      </div>
     </div>
 
     <!-- GEGEVENSBEHEER — onderaan voor veiligheid -->
@@ -2279,6 +2411,8 @@ function renderSuperPagina() {
   renderFeedbackOverzicht();
   renderChecklistBeheer();
   laadInstellingen();
+  // Vul monteur keuzelijst
+  const sel=document.getElementById('export-monteur-keuze');if(sel&&dynamischeMonteurs){sel.innerHTML='<option value="">— Kies monteur —</option>'+dynamischeMonteurs.map(m=>`<option value="${m}">${m}</option>`).join('');}
 }
 
 /* ===== MONTEURS (Supabase) ===== */
@@ -2407,6 +2541,11 @@ function superToggle(id) {
     if (id === 'prestatie') buildPrestatieWidget();
     if (id === 'zones') buildZonesWidget();
     if (id === 'verdacht') buildVerdachtWidget();
+    if (id === 'archief') renderArchief();
+    if (id === 'sla') buildSlaWidget();
+    if (id === 'autostatus') buildAutostatuWidget();
+    if (id === 'vergelijk') buildVergelijkWidget();
+    if (id === 'exportmont') { const s=document.getElementById('export-monteur-keuze'); if(s&&dynamischeMonteurs) s.innerHTML='<option value="">— Kies monteur —</option>'+dynamischeMonteurs.map(m=>`<option value="${m}">${m}</option>`).join(''); }
   }
 }
 
@@ -2632,6 +2771,69 @@ function exportWidgetPDF(id){
   const pages=doc.internal.getNumberOfPages();for(let i=1;i<=pages;i++){doc.setPage(i);doc.setFontSize(7);doc.setTextColor(148,163,184);doc.text(`CWT S3 Onderhoud · Vertrouwelijk · ${vandaag}`,pw/2,doc.internal.pageSize.getHeight()-4,{align:'center'});}
   doc.save(`CWT_${id}_${new Date().toISOString().split('T')[0]}.pdf`);toast('📄 PDF gedownload');logAudit(userName,userRole,'export',`Widget PDF: ${titels[id]}`);
 }
+
+/* ===== DARK/LIGHT MODE ===== */
+function toggleTheme(){const isLight=document.documentElement.getAttribute('data-theme')==='light';document.documentElement.setAttribute('data-theme',isLight?'':'light');document.getElementById('btn-theme').textContent=isLight?'🌙':'☀️';localStorage.setItem('cwt_theme',isLight?'dark':'light');}
+function laadTheme(){const t=localStorage.getItem('cwt_theme');if(t==='light'){document.documentElement.setAttribute('data-theme','light');const b=document.getElementById('btn-theme');if(b)b.textContent='☀️';}}
+
+/* ===== OFFLINE DETECTIE ===== */
+function updateOnlineStatus(){const b=document.getElementById('offline-banner');if(b)b.style.display=navigator.onLine?'none':'flex';if(!navigator.onLine)toast('📶 Geen internetverbinding');else syncOfflineForms();}
+window.addEventListener('online',updateOnlineStatus);window.addEventListener('offline',updateOnlineStatus);
+function syncOfflineForms(){const raw=localStorage.getItem('cwt_offline_queue');if(!raw)return;try{const queue=JSON.parse(raw);if(!queue.length)return;toast(`📶 Online — ${queue.length} formulier(en) synchroniseren...`);queue.forEach(data=>sbFetch('onderhoud',{method:'POST',body:JSON.stringify(data)}).catch(()=>{}));localStorage.removeItem('cwt_offline_queue');}catch(_){}}
+
+/* ===== CONCEPT OPSLAAN ===== */
+function slaConceptOp(){try{localStorage.setItem('cwt_concept',JSON.stringify({...state,ts:Date.now()}));const el=document.getElementById('concept-status');if(el)el.textContent='✅ Opgeslagen om '+new Date().toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});toast('💾 Concept opgeslagen');}catch(e){toast('❌ Opslaan mislukt');}}
+function laadConcept(){try{const raw=localStorage.getItem('cwt_concept');if(!raw){toast('⚠️ Geen concept gevonden');return;}const concept=JSON.parse(raw);const ts=concept.ts?new Date(concept.ts).toLocaleString('nl-NL'):'?';if(!confirm(`Concept laden van ${ts}? Het huidige formulier wordt overschreven.`))return;delete concept.ts;Object.assign(state,concept);['automaatnummer','datum','tijdstip','locatie','zone','mobilist'].forEach(id=>{const el=document.getElementById(id);if(el&&state[id])el.value=state[id];});renderFotoGallery();renderStep();toast('📝 Concept geladen');}catch(e){toast('❌ Laden mislukt');}}
+
+/* ===== SNELLE HERSTART ===== */
+async function snelleHerstart(){const data=mijnData&&mijnData.length?mijnData[0]:null;if(!data){toast('⚠️ Geen eerdere formulieren gevonden');return;}if(!confirm(`Formulier starten voor automaat ${data.automaatnr}?`))return;newForm();await new Promise(r=>setTimeout(r,150));['automaatnummer','locatie','zone'].forEach(id=>{const v=id==='automaatnummer'?data.automaatnr:id==='locatie'?data.locatie:data.zone;const el=document.getElementById(id);if(el&&v)el.value=v;});toast('⚡ Formulier gestart met vorige automaat');}
+
+/* ===== MIJN STATISTIEKEN ===== */
+function updateMijnStatistieken(data){if(!data||!data.length)return;const nu=new Date();const dezeM=data.filter(x=>{if(!x.datum)return false;const d=new Date(x.datum);return d.getMonth()===nu.getMonth()&&d.getFullYear()===nu.getFullYear();});const gemScore=data.length?Math.round(data.reduce((s,x)=>s+(x.pct||0),0)/data.length):0;const dagen=new Set(data.map(x=>x.datum).filter(Boolean));const mndCount={};data.forEach(x=>{const m=(x.datum||'').slice(0,7);if(m)mndCount[m]=(mndCount[m]||0)+1;});const besteMnd=Object.entries(mndCount).sort((a,b)=>b[1]-a[1])[0];const el=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};el('stat-maand',dezeM.length);el('stat-gem-score',gemScore+'%');el('stat-streak',dagen.size);el('stat-record',besteMnd?besteMnd[1]+' ('+besteMnd[0]+')':'—');const sub=document.getElementById('mijn-stats-subtitle');if(sub)sub.textContent=`${data.length} totaal · gem. ${gemScore}% · ${dezeM.length} deze maand`;const sel=document.getElementById('export-monteur-keuze');if(sel&&dynamischeMonteurs){sel.innerHTML='<option value="">— Kies monteur —</option>'+dynamischeMonteurs.map(m=>`<option value="${m}">${m}</option>`).join('');}}
+
+/* ===== NOTITIE ===== */
+function toonNotitieVeld(id){const el=document.getElementById('notitie-form-'+id);if(el)el.style.display=el.style.display==='none'?'block':'none';}
+async function slaNotitieOp(id){const tekst=document.getElementById('notitie-tekst-'+id)?.value||'';try{await sbFetch('rpc/sla_notitie_op',{method:'POST',body:JSON.stringify({p_id:id,p_notitie:tekst})});document.getElementById('notitie-form-'+id).style.display='none';const item=dbData?.find(x=>x.id===id);if(item)item.beheerder_notitie=tekst;toast('💬 Notitie opgeslagen');logAudit(userName,userRole,'notitie',`Notitie toegevoegd aan formulier #${id}`);}catch(e){toast('❌ Opslaan mislukt');}}
+
+/* ===== ARCHIVEREN ===== */
+async function archiveerFormulier(id,archiveer){if(!confirm(archiveer?'Dit formulier archiveren?':'Formulier dearchiveren?'))return;try{await sbFetch('rpc/archiveer_formulier',{method:'POST',body:JSON.stringify({p_id:id,p_archiveer:archiveer})});const item=dbData?.find(x=>x.id===id);if(item)item.gearchiveerd=archiveer;sluitDetail();invalideerCache();toast(archiveer?'📦 Gearchiveerd':'📤 Dearchiveerd');logAudit(userName,userRole,'archief',`Formulier #${id} ${archiveer?'gearchiveerd':'dearchiveerd'}`);}catch(e){toast('❌ Mislukt: '+e.message);}}
+async function renderArchief(){const el=document.getElementById('archief-lijst');const cnt=document.getElementById('archief-count');if(!el)return;el.innerHTML=`<div style="padding:20px;text-align:center;color:var(--text3);"><span class="spinner"></span> Laden...</div>`;try{const data=await sbFetch('onderhoud?gearchiveerd=eq.true&order=datum.desc&select=id,datum,automaatnr,locatie,zone,mobilist,pct,status');if(!Array.isArray(data)||!data.length){el.innerHTML=`<div class="plan-empty">Geen gearchiveerde formulieren</div>`;if(cnt)cnt.textContent='Archief leeg';return;}if(cnt)cnt.textContent=data.length+' gearchiveerde formulieren';archiefData=data;filterArchief();}catch(e){el.innerHTML=`<div class="plan-empty" style="color:var(--red);">❌ ${e.message}</div>`;}}
+let archiefData=[];
+function filterArchief(){const zoek=(document.getElementById('archief-search')?.value||'').toLowerCase();const gefilterd=archiefData.filter(x=>!zoek||(x.automaatnr||'').toLowerCase().includes(zoek)||(x.locatie||'').toLowerCase().includes(zoek)||(x.mobilist||'').toLowerCase().includes(zoek));const el=document.getElementById('archief-lijst');if(!el)return;if(!gefilterd.length){el.innerHTML=`<div class="plan-empty">Geen resultaten</div>`;return;}el.innerHTML=gefilterd.map(x=>`<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);"><div style="flex:1;"><div style="font-weight:600;font-size:13px;">${x.automaatnr||'?'} <span style="font-size:11px;color:var(--text3);">· ${x.locatie||''}</span></div><div style="font-size:11px;color:var(--text3);">${formatDatum(x.datum)} · ${x.mobilist||'?'} · ${x.pct||0}%</div></div><button class="btn btn-ghost" onclick="archiveerFormulier(${x.id},false)" style="font-size:11px;">📤 Terugzetten</button></div>`).join('');}
+function exportArchiefExcel(){if(!archiefData.length){toast('⚠️ Laad eerst het archief');return;}const wb=XLSX.utils.book_new();const ws=XLSX.utils.aoa_to_sheet([['Datum','Automaat','Locatie','Zone','Monteur','Score','Status'],...archiefData.map(x=>[x.datum||'',x.automaatnr||'',x.locatie||'',x.zone||'',x.mobilist||'',(x.pct||0)+'%',x.status||''])]);XLSX.utils.book_append_sheet(wb,ws,'Archief');XLSX.writeFile(wb,`CWT_Archief_${new Date().toISOString().split('T')[0]}.xlsx`);toast('📊 Archief Excel gedownload');}
+
+/* ===== SLA RAPPORT ===== */
+async function buildSlaWidget(){const el=document.getElementById('sla-inhoud');if(!el)return;el.innerHTML=`<div style="text-align:center;padding:20px;"><span class="spinner"></span></div>`;await ensureDbData();const data=dbData||[];const nu=new Date();const d30=new Date(nu-30*864e5).toISOString().split('T')[0];const d60=new Date(nu-60*864e5).toISOString().split('T')[0];const d90=new Date(nu-90*864e5).toISOString().split('T')[0];const laatste={};data.forEach(x=>{if(x.automaatnr&&x.datum&&(!laatste[x.automaatnr]||x.datum>laatste[x.automaatnr]))laatste[x.automaatnr]=x.datum;});const tot=AUTOMATEN.length;const b30=AUTOMATEN.filter(a=>laatste[a.automaatnr]>=d30).length;const b60=AUTOMATEN.filter(a=>laatste[a.automaatnr]>=d60).length;const b90=AUTOMATEN.filter(a=>laatste[a.automaatnr]>=d90).length;const nooit=AUTOMATEN.filter(a=>!laatste[a.automaatnr]).length;const pct=n=>Math.round(n/tot*100);el.innerHTML=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;"><div class="kpi"><div class="kpi-val green">${pct(b30)}%</div><div class="kpi-label">≤30d (${b30}/${tot})</div></div><div class="kpi"><div class="kpi-val amber">${pct(b60)}%</div><div class="kpi-label">≤60d (${b60}/${tot})</div></div><div class="kpi"><div class="kpi-val">${pct(b90)}%</div><div class="kpi-label">≤90d (${b90}/${tot})</div></div><div class="kpi"><div class="kpi-val red">${nooit}</div><div class="kpi-label">Nooit bezocht</div></div></div><div style="background:var(--surface2);border-radius:10px;overflow:hidden;">${Object.entries(AUTOMATEN.reduce((z,a)=>{if(!z[a.Node])z[a.Node]={tot:0,b30:0,b60:0,b90:0};z[a.Node].tot++;if(laatste[a.automaatnr]>=d30)z[a.Node].b30++;if(laatste[a.automaatnr]>=d60)z[a.Node].b60++;if(laatste[a.automaatnr]>=d90)z[a.Node].b90++;return z;},{})).sort((a,b)=>Number(a[0])-Number(b[0])).map(([zone,d])=>`<div style="display:grid;grid-template-columns:1fr 70px 70px 70px 70px;padding:9px 14px;border-bottom:1px solid var(--border);font-size:13px;"><div style="font-weight:600;">Zone ${zone}</div><div style="text-align:center">${d.tot}</div><div style="text-align:center;color:${d.b30===d.tot?'var(--green)':'var(--amber)'};">${d.b30}</div><div style="text-align:center;color:${d.b60===d.tot?'var(--green)':'var(--amber)'};">${d.b60}</div><div style="text-align:center;color:${d.b90===d.tot?'var(--green)':'var(--red)'};">${d.b90}</div></div>`).join('')}</div>`;}
+function exportSlaExcel(){ensureDbData().then(()=>{const nu=new Date();const d30=new Date(nu-30*864e5).toISOString().split('T')[0];const d60=new Date(nu-60*864e5).toISOString().split('T')[0];const d90=new Date(nu-90*864e5).toISOString().split('T')[0];const laatste={};(dbData||[]).forEach(x=>{if(x.automaatnr&&x.datum&&(!laatste[x.automaatnr]||x.datum>laatste[x.automaatnr]))laatste[x.automaatnr]=x.datum;});const wb=XLSX.utils.book_new();const ws=XLSX.utils.aoa_to_sheet([['Automaat','Locatie','Zone','Laatste beurt','≤30d','≤60d','≤90d'],...AUTOMATEN.map(a=>[a.automaatnr,a.locatie||'',a.Node||'',laatste[a.automaatnr]||'Nooit',laatste[a.automaatnr]>=d30?'✓':'',laatste[a.automaatnr]>=d60?'✓':'',laatste[a.automaatnr]>=d90?'✓':''])]);XLSX.utils.book_append_sheet(wb,ws,'SLA');XLSX.writeFile(wb,`CWT_SLA_${new Date().toISOString().split('T')[0]}.xlsx`);toast('📊 SLA Excel gedownload');});}
+async function exportSlaPDF(){await ensureDbData();toast('⏳ PDF...');const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});const pw=doc.internal.pageSize.getWidth();const nu=new Date();const d30=new Date(nu-30*864e5).toISOString().split('T')[0];const d60=new Date(nu-60*864e5).toISOString().split('T')[0];const d90=new Date(nu-90*864e5).toISOString().split('T')[0];const laatste={};(dbData||[]).forEach(x=>{if(x.automaatnr&&x.datum&&(!laatste[x.automaatnr]||x.datum>laatste[x.automaatnr]))laatste[x.automaatnr]=x.datum;});doc.setFillColor(22,163,74);doc.roundedRect(10,8,pw-20,14,2,2,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text('CWT S3 — SLA Rapport',pw/2,17,{align:'center'});doc.autoTable({head:[['Automaat','Locatie','Zone','Laatste beurt','≤30d','≤60d','≤90d']],body:AUTOMATEN.map(a=>[a.automaatnr,(a.locatie||'').substring(0,30),a.Node||'',laatste[a.automaatnr]||'Nooit',laatste[a.automaatnr]>=d30?'✓':'✗',laatste[a.automaatnr]>=d60?'✓':'✗',laatste[a.automaatnr]>=d90?'✓':'✗']),startY:26,margin:{left:10,right:10},styles:{fontSize:7.5,cellPadding:2,halign:'center'},headStyles:{fillColor:[22,163,74],textColor:255,fontStyle:'bold'},columnStyles:{1:{halign:'left',cellWidth:55},0:{fontStyle:'bold',cellWidth:18},3:{cellWidth:26}}});doc.save(`CWT_SLA_${new Date().toISOString().split('T')[0]}.pdf`);toast('📄 SLA PDF gedownload');}
+
+/* ===== AUTOMAAT STATUS ===== */
+async function buildAutostatuWidget(){const el=document.getElementById('autostatus-inhoud');if(!el)return;el.innerHTML=`<div style="text-align:center;padding:20px;"><span class="spinner"></span></div>`;await ensureDbData();const data=dbData||[];const nu=new Date();const laatste={};data.forEach(x=>{if(!x.automaatnr)return;if(!laatste[x.automaatnr]||x.datum>laatste[x.automaatnr])laatste[x.automaatnr]=x.datum;});const risico=a=>{if(!laatste[a.automaatnr])return 3;const d=Math.floor((nu-new Date(laatste[a.automaatnr]))/864e5);if(d>90)return 2;if(d>30)return 1;return 0;};const gesorteerd=[...AUTOMATEN].sort((a,b)=>risico(b)-risico(a));const kleuren=['var(--green)','var(--amber)','var(--red)','var(--red)'];const labels=['✅ Recent (≤30d)','⚠️ Let op (31-90d)','🔴 Achterstallig (>90d)','🚫 Nooit bezocht'];el.innerHTML=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">${[0,1,2,3].map(r=>`<div class="kpi"><div class="kpi-val" style="color:${kleuren[r]};">${gesorteerd.filter(a=>risico(a)===r).length}</div><div class="kpi-label">${labels[r]}</div></div>`).join('')}</div><div style="max-height:400px;overflow-y:auto;border-radius:10px;border:1px solid var(--border);">${gesorteerd.map(a=>{const r=risico(a);const d=laatste[a.automaatnr]?Math.floor((nu-new Date(laatste[a.automaatnr]))/864e5):999;return`<div style="display:grid;grid-template-columns:60px 1fr 80px 100px;align-items:center;padding:9px 14px;border-bottom:1px solid var(--border);gap:8px;"><div style="font-weight:700;font-size:13px;color:${kleuren[Math.min(r,3)]};">${a.automaatnr}</div><div style="font-size:12px;color:var(--text2);">${(a.locatie||'').substring(0,40)}</div><div style="font-size:11px;text-align:center;color:var(--text3);">Zone ${a.Node||'?'}</div><div style="font-size:11px;text-align:right;color:${kleuren[Math.min(r,3)]};">${laatste[a.automaatnr]?d+'d geleden':'Nooit'}</div></div>`;}).join('')}</div>`;}
+function exportAutostatusExcel(){ensureDbData().then(()=>{const nu=new Date();const laatste={};(dbData||[]).forEach(x=>{if(x.automaatnr&&x.datum&&(!laatste[x.automaatnr]||x.datum>laatste[x.automaatnr]))laatste[x.automaatnr]=x.datum;});const risico=a=>{if(!laatste[a.automaatnr])return'Nooit bezocht';const d=Math.floor((nu-new Date(laatste[a.automaatnr]))/864e5);if(d>90)return'Achterstallig (>90d)';if(d>30)return'Let op (31-90d)';return'Recent (≤30d)';};const wb=XLSX.utils.book_new();const ws=XLSX.utils.aoa_to_sheet([['Automaat','Locatie','Zone','Laatste beurt','Risico'],...[...AUTOMATEN].sort((a,b)=>{const r={'Nooit bezocht':3,'Achterstallig (>90d)':2,'Let op (31-90d)':1,'Recent (≤30d)':0};return(r[risico(b)]||0)-(r[risico(a)]||0);}).map(a=>[a.automaatnr,a.locatie||'',a.Node||'',laatste[a.automaatnr]||'Nooit',risico(a)])]);XLSX.utils.book_append_sheet(wb,ws,'Status');XLSX.writeFile(wb,`CWT_AutomaatStatus_${new Date().toISOString().split('T')[0]}.xlsx`);toast('📊 Automaat status Excel gedownload');});}
+async function exportAutostatusPDF(){await ensureDbData();toast('⏳ PDF...');const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});const pw=doc.internal.pageSize.getWidth();const nu=new Date();const laatste={};(dbData||[]).forEach(x=>{if(x.automaatnr&&x.datum&&(!laatste[x.automaatnr]||x.datum>laatste[x.automaatnr]))laatste[x.automaatnr]=x.datum;});const risico=a=>{if(!laatste[a.automaatnr])return'Nooit bezocht';const d=Math.floor((nu-new Date(laatste[a.automaatnr]))/864e5);if(d>90)return'Achterstallig';if(d>30)return'Let op';return'Recent';};doc.setFillColor(220,38,38);doc.roundedRect(10,8,pw-20,14,2,2,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text('CWT S3 — Automaat Status Overzicht',pw/2,17,{align:'center'});doc.autoTable({head:[['Automaat','Locatie','Zone','Laatste beurt','Status']],body:[...AUTOMATEN].sort((a,b)=>{const r={'Nooit bezocht':3,'Achterstallig':2,'Let op':1,'Recent':0};return(r[risico(b)]||0)-(r[risico(a)]||0);}).map(a=>[a.automaatnr,(a.locatie||'').substring(0,40),a.Node||'',laatste[a.automaatnr]||'Nooit',risico(a)]),startY:26,margin:{left:10,right:10},styles:{fontSize:8,cellPadding:2.5},headStyles:{fillColor:[220,38,38],textColor:255,fontStyle:'bold'},alternateRowStyles:{fillColor:[248,250,252]},didParseCell(d){if(d.column.index===4&&d.section==='body'){const c={'Nooit bezocht':[220,38,38],'Achterstallig':[220,38,38],'Let op':[217,119,6],'Recent':[22,163,74]};d.cell.styles.textColor=c[d.cell.raw]||[30,41,59];d.cell.styles.fontStyle='bold';}}});doc.save(`CWT_AutomaatStatus_${new Date().toISOString().split('T')[0]}.pdf`);toast('📄 Automaat status PDF gedownload');}
+
+/* ===== AUTOMAAT DOSSIER ===== */
+let dossierData=[];
+function zoekDossier(){}
+async function laadDossier(){const nr=(document.getElementById('dossier-zoek')?.value||'').trim().toUpperCase();const el=document.getElementById('dossier-inhoud');if(!nr||!el){toast('⚠️ Voer een automaatnummer in');return;}el.innerHTML=`<div style="text-align:center;padding:20px;"><span class="spinner"></span></div>`;try{const data=await sbFetch(`onderhoud?automaatnr=eq.${encodeURIComponent(nr)}&order=datum.desc&gearchiveerd=eq.false`);if(!Array.isArray(data)||!data.length){el.innerHTML=`<div class="plan-empty">Geen formulieren gevonden voor automaat ${nr}</div>`;return;}const auto=AUTOMATEN.find(a=>a.automaatnr===nr);const gemScore=Math.round(data.reduce((s,x)=>s+(x.pct||0),0)/data.length);dossierData=data;el.innerHTML=`<div style="background:var(--surface2);border-radius:10px;padding:14px 16px;margin-bottom:14px;"><div style="font-size:16px;font-weight:700;">${nr} <span style="font-size:12px;color:var(--text3);">· ${auto?.locatie||'Onbekende locatie'} · Zone ${auto?.Node||'?'}</span></div><div style="display:flex;gap:16px;margin-top:8px;font-size:13px;color:var(--text2);flex-wrap:wrap;"><span>📋 ${data.length} beurten</span><span>⭐ Gem. ${gemScore}%</span><span>📅 Eerste: ${data[data.length-1]?.datum||'?'}</span><span>📅 Laatste: ${data[0]?.datum||'?'}</span></div></div>${data.map(x=>`<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:8px;border:1px solid var(--border);margin-bottom:6px;cursor:pointer;" onclick="userRole!=='medewerker'&&openDetail(${x.id})"><div style="width:44px;height:44px;border-radius:8px;background:${(x.pct||0)>=90?'var(--green-bg)':(x.pct||0)>=70?'var(--amber-bg)':'var(--red-bg)'};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:${(x.pct||0)>=90?'var(--green)':(x.pct||0)>=70?'var(--amber)':'var(--red)'};">${x.pct||0}%</div><div style="flex:1;"><div style="font-size:13px;font-weight:600;">${formatDatum(x.datum)} <span style="font-size:11px;color:var(--text3);">· ${x.mobilist||'?'}</span></div><div style="font-size:11px;color:var(--text3);">${x.status||'ingediend'}${x.beheerder_notitie?` · 💬 ${x.beheerder_notitie.substring(0,40)}`:''}</div></div></div>`).join('')}`;}catch(e){el.innerHTML=`<div class="plan-empty" style="color:var(--red);">❌ ${e.message}</div>`;}}
+function exportDossierExcel(){if(!dossierData.length){toast('⚠️ Laad eerst een dossier');return;}const wb=XLSX.utils.book_new();const ws=XLSX.utils.aoa_to_sheet([['Datum','Monteur','Score','Status','Notitie'],...dossierData.map(x=>[x.datum||'',x.mobilist||'',(x.pct||0)+'%',x.status||'',x.beheerder_notitie||''])]);XLSX.utils.book_append_sheet(wb,ws,'Dossier');XLSX.writeFile(wb,`CWT_Dossier_${dossierData[0]?.automaatnr||'?'}_${new Date().toISOString().split('T')[0]}.xlsx`);toast('📊 Dossier Excel gedownload');}
+
+/* ===== VERGELIJK PERIODES ===== */
+async function buildVergelijkWidget(){const el=document.getElementById('vergelijk-inhoud');if(!el)return;el.innerHTML=`<div style="text-align:center;padding:20px;"><span class="spinner"></span></div>`;await ensureDbData();const nu=new Date();const dm=`${nu.getFullYear()}-${String(nu.getMonth()+1).padStart(2,'0')}`;const vm=nu.getMonth()===0?`${nu.getFullYear()-1}-12`:`${nu.getFullYear()}-${String(nu.getMonth()).padStart(2,'0')}`;const data=dbData||[];const dezeM=data.filter(x=>(x.datum||'').startsWith(dm));const vorigeM=data.filter(x=>(x.datum||'').startsWith(vm));const zones=[...new Set(AUTOMATEN.map(a=>a.Node).filter(Boolean))].sort((a,b)=>Number(a)-Number(b));const stat=(d,zone)=>{const r=d.filter(x=>String(x.zone)===String(zone));return{n:r.length,gem:r.length?Math.round(r.reduce((s,x)=>s+(x.pct||0),0)/r.length):0};};el.innerHTML=`<div style="margin-bottom:10px;display:flex;gap:20px;font-size:13px;font-weight:600;flex-wrap:wrap;"><span style="color:var(--accent);">● Deze maand (${dm}): ${dezeM.length} beurten</span><span style="color:var(--text3);">● Vorige maand (${vm}): ${vorigeM.length} beurten</span></div><div style="overflow-x:auto;border-radius:10px;border:1px solid var(--border);"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:var(--surface2);font-size:11px;color:var(--text3);font-weight:600;"><th style="padding:10px 14px;text-align:left;">ZONE</th><th style="padding:10px 8px;text-align:center;">BEURTEN</th><th style="padding:10px 8px;text-align:center;">GEM%</th><th style="padding:10px 8px;text-align:center;">VORIG</th><th style="padding:10px 8px;text-align:center;">GEM%</th><th style="padding:10px 8px;text-align:center;">TREND</th></tr></thead><tbody>${zones.map(zone=>{const d=stat(dezeM,zone),v=stat(vorigeM,zone);const trend=d.n>v.n?'📈 +'+(d.n-v.n):d.n<v.n?'📉 '+(d.n-v.n):'➡️';return`<tr style="border-top:1px solid var(--border);"><td style="padding:9px 14px;font-weight:600;">Zone ${zone}</td><td style="padding:9px 8px;text-align:center;">${d.n}</td><td style="padding:9px 8px;text-align:center;color:${d.gem>=90?'var(--green)':d.gem>=70?'var(--amber)':'var(--red)'};">${d.gem?d.gem+'%':'—'}</td><td style="padding:9px 8px;text-align:center;color:var(--text3);">${v.n}</td><td style="padding:9px 8px;text-align:center;color:var(--text3);">${v.gem?v.gem+'%':'—'}</td><td style="padding:9px 8px;text-align:center;font-size:12px;">${trend}</td></tr>`;}).join('')}</tbody></table></div>`;}
+function exportVergelijkExcel(){if(!dbData)return;const nu=new Date();const dm=`${nu.getFullYear()}-${String(nu.getMonth()+1).padStart(2,'0')}`;const vm=nu.getMonth()===0?`${nu.getFullYear()-1}-12`:`${nu.getFullYear()}-${String(nu.getMonth()).padStart(2,'0')}`;const dezeM=dbData.filter(x=>(x.datum||'').startsWith(dm));const vorigeM=dbData.filter(x=>(x.datum||'').startsWith(vm));const wb=XLSX.utils.book_new();const ws=XLSX.utils.aoa_to_sheet([['Zone','Deze maand','Gem %','Vorige maand','Gem %'],...[...new Set(AUTOMATEN.map(a=>a.Node).filter(Boolean))].sort((a,b)=>Number(a)-Number(b)).map(zone=>{const d=dezeM.filter(x=>String(x.zone)===String(zone)),v=vorigeM.filter(x=>String(x.zone)===String(zone));return[zone,d.length,d.length?Math.round(d.reduce((s,x)=>s+(x.pct||0),0)/d.length):0,v.length,v.length?Math.round(v.reduce((s,x)=>s+(x.pct||0),0)/v.length):0];})]);XLSX.utils.book_append_sheet(wb,ws,'Vergelijk');XLSX.writeFile(wb,`CWT_Vergelijk_${dm}_vs_${vm}.xlsx`);toast('📊 Vergelijk Excel gedownload');}
+
+/* ===== EXPORT PER MONTEUR ===== */
+function exportPerMonteur(naam){if(!naam){toast('⚠️ Kies een monteur');return;}const data=(dbData||[]).filter(x=>x.mobilist===naam);if(!data.length){toast(`⚠️ Geen formulieren voor ${naam}`);return;}const wb=XLSX.utils.book_new();const ws=XLSX.utils.aoa_to_sheet([['CWT S3 — Formulieren van '+naam],[`${data.length} beurten · gem. ${Math.round(data.reduce((s,x)=>s+(x.pct||0),0)/data.length)}%`],[],['Datum','Automaat','Locatie','Zone','Score','Status','Kosten','Bijzonderheden'],...data.map(x=>[x.datum||'',x.automaatnr||'',x.locatie||'',x.zone||'',(x.pct||0)+'%',x.status||'',x.totaal_kosten>0?formatEuro(x.totaal_kosten):'',x.bijzonderheden||''])]);ws['!cols']=[12,14,38,8,8,14,12,40].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws,naam.substring(0,31));XLSX.writeFile(wb,`CWT_${naam.replace(/\s/g,'_')}_${new Date().toISOString().split('T')[0]}.xlsx`);toast(`📊 ${naam} Excel gedownload (${data.length} formulieren)`);}
+async function exportPerMonteurPDF(naam){if(!naam){toast('⚠️ Kies een monteur');return;}await ensureDbData();const data=(dbData||[]).filter(x=>x.mobilist===naam);if(!data.length){toast(`⚠️ Geen formulieren voor ${naam}`);return;}toast('⏳ PDF...');const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});const pw=doc.internal.pageSize.getWidth();doc.setFillColor(30,58,138);doc.roundedRect(10,8,pw-20,14,2,2,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text(`CWT S3 — ${naam} (${data.length} beurten)`,pw/2,17,{align:'center'});doc.autoTable({head:[['Datum','Automaat','Locatie','Zone','Score','Status']],body:data.map(x=>[x.datum||'',x.automaatnr||'',(x.locatie||'').substring(0,40),x.zone||'',(x.pct||0)+'%',x.status||'']),startY:26,margin:{left:10,right:10},styles:{fontSize:8.5,cellPadding:2.5},headStyles:{fillColor:[30,58,138],textColor:255,fontStyle:'bold'},alternateRowStyles:{fillColor:[248,250,252]},didParseCell(d){if(d.column.index===4&&d.section==='body'){const p=parseInt(d.cell.raw);d.cell.styles.textColor=p>=90?[22,163,74]:p>=70?[217,119,6]:[220,38,38];d.cell.styles.fontStyle='bold';}}});doc.setFontSize(7);doc.setTextColor(148,163,184);doc.text(`CWT S3 Onderhoud · ${new Date().toLocaleDateString('nl-NL')}`,pw/2,doc.internal.pageSize.getHeight()-4,{align:'center'});doc.save(`CWT_${naam.replace(/\s/g,'_')}_${new Date().toISOString().split('T')[0]}.pdf`);toast(`📄 ${naam} PDF gedownload`);}
+
+/* ===== BULK GOEDKEUREN ===== */
+let bulkSel=new Set();
+function toggleBulkAll(aan){document.querySelectorAll('.tbl-bulk-cb').forEach(cb=>{cb.checked=aan;const id=parseInt(cb.dataset.id);if(aan)bulkSel.add(id);else bulkSel.delete(id);});updateBulkBar();}
+function toggleBulkRow(id,aan){if(aan)bulkSel.add(id);else bulkSel.delete(id);updateBulkBar();}
+function updateBulkBar(){const bar=document.getElementById('bulk-bar');const cnt=document.getElementById('bulk-count');if(bar)bar.style.display=bulkSel.size>0?'flex':'none';if(cnt)cnt.textContent=bulkSel.size+' geselecteerd';const allCb=document.getElementById('bulk-sel-all');if(allCb){const all=document.querySelectorAll('.tbl-bulk-cb');allCb.checked=all.length>0&&[...all].every(c=>c.checked);allCb.indeterminate=bulkSel.size>0&&bulkSel.size<all.length;}}
+function clearBulkSel(){bulkSel.clear();document.querySelectorAll('.tbl-bulk-cb').forEach(cb=>cb.checked=false);const allCb=document.getElementById('bulk-sel-all');if(allCb){allCb.checked=false;allCb.indeterminate=false;}updateBulkBar();}
+async function bulkGoedkeuren(){if(!bulkSel.size)return;if(!confirm(`${bulkSel.size} formulieren goedkeuren?`))return;const ids=[...bulkSel];let ok=0;for(const id of ids){try{await sbFetch('onderhoud?id=eq.'+id,{method:'PATCH',body:JSON.stringify({status:'goedgekeurd'})});ok++;}catch(_){}}clearBulkSel();invalideerCache();renderDashboard();toast(`✅ ${ok} formulieren goedgekeurd`);logAudit(userName,userRole,'bulk goedgekeurd',`${ok} formulieren goedgekeurd`);}
+async function bulkAfkeuren(){if(!bulkSel.size)return;const reden=prompt('Reden voor afkeuring (verplicht):');if(!reden)return;const ids=[...bulkSel];let ok=0;for(const id of ids){try{await sbFetch('onderhoud?id=eq.'+id,{method:'PATCH',body:JSON.stringify({status:'afgekeurd',afkeur_reden:reden})});ok++;}catch(_){}}clearBulkSel();invalideerCache();renderDashboard();toast(`❌ ${ok} formulieren afgekeurd`);}
 
 /* ===== EXPORT FUNCTIES DASHBOARD WIDGETS ===== */
 
@@ -3982,9 +4184,12 @@ async function openDetail(id){
     if(xStatus!=='goedgekeurd') html+=`<button class="btn btn-goedkeur" onclick="setStatus(${x.id},'goedgekeurd')">✅ Goedkeuren</button>`;
     if(xStatus!=='afgekeurd')  html+=`<button class="btn btn-afkeur"   onclick="showAfkeurBox(${x.id})">❌ Afkeuren</button>`;
     if(xStatus==='afgekeurd'||xStatus==='goedgekeurd') html+=`<button class="btn btn-heropenen" onclick="setStatus(${x.id},'heropend')">🔄 Heropenen</button>`;
+    html+=`<button class="btn btn-ghost" onclick="toonNotitieVeld(${x.id})" style="font-size:12px;">💬 Notitie</button>`;
+    html+=`<button class="btn btn-ghost" onclick="archiveerFormulier(${x.id},${!x.gearchiveerd})" style="font-size:12px;">${x.gearchiveerd?'📤 Dearchiveren':'📦 Archiveren'}</button>`;
     html+=`</div>`;
-    // Afkeur invoerveld (verborgen, wordt zichtbaar na klik)
     html+=`<div id="afkeur-form-${x.id}" style="display:none;"><div class="afkeur-box"><div class="afkeur-label">Reden voor afkeuring</div><textarea class="afkeur-textarea" id="afkeur-reden-${x.id}" placeholder="Beschrijf waarom dit formulier wordt afgekeurd..."></textarea><div style="display:flex;gap:8px;margin-top:10px;"><button class="btn btn-afkeur" onclick="submitAfkeur(${x.id})">❌ Bevestig afkeuring</button><button class="btn btn-ghost" onclick="document.getElementById('afkeur-form-${x.id}').style.display='none'">Annuleer</button></div></div></div>`;
+    html+=`<div id="notitie-form-${x.id}" style="display:none;padding:12px 20px;border-top:1px solid var(--border);"><div style="font-size:12px;color:var(--text3);margin-bottom:6px;">💬 Beheerder notitie</div><textarea style="width:100%;min-height:80px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;resize:vertical;" id="notitie-tekst-${x.id}" placeholder="Voeg een notitie toe...">${x.beheerder_notitie||''}</textarea><div style="display:flex;gap:8px;margin-top:8px;"><button class="btn btn-primary" onclick="slaNotitieOp(${x.id})" style="font-size:12px;">💾 Opslaan</button><button class="btn btn-ghost" onclick="document.getElementById('notitie-form-${x.id}').style.display='none'" style="font-size:12px;">Annuleer</button></div></div>`;
+    if(x.beheerder_notitie) html+=`<div style="padding:10px 20px;background:var(--accent-glow);border-left:3px solid var(--accent);margin:0 0 4px 0;font-size:13px;"><span style="font-weight:600;color:var(--accent);">💬 Notitie:</span> ${x.beheerder_notitie}</div>`;
   }
 
   const cos=x.cos||{},cosR=x.cos_remarks||{};
@@ -5955,6 +6160,8 @@ function kiesNaam(naam) {
 function finishLogin() {
   document.getElementById('login-overlay').style.display = 'none';
   document.getElementById('app-wrapper').classList.add('active');
+  laadTheme();
+  updateOnlineStatus();
   if (userRole === 'superbeheerder') {
     document.getElementById('tab-plan').style.display = '';
     document.getElementById('tab-super').style.display = '';
@@ -5988,6 +6195,7 @@ async function renderMijn() {
     }
     // KPIs altijd op ALLE eigen data, niet op gefilterde weergave
     updateMijnKPIs(mijnData);
+    updateMijnStatistieken(mijnData);
     renderMijnList(mijnData);
     document.getElementById('mijn-naam-title').textContent = `Formulieren van ${userName}`;
     document.getElementById('mijn-subtitle').textContent = mijnData.length + ' formulier' + (mijnData.length !== 1 ? 'en' : '') + ' gevonden';
