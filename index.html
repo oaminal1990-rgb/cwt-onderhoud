@@ -1800,8 +1800,23 @@ function isZichtbaar(item, cosData, prevData) {
   const pId = item.toon_als;
   const pIdx = cosItems.findIndex(x=>typeof x==='object'&&x.id===pId);
   const ppIdx = prevItems.findIndex(x=>typeof x==='object'&&x.id===pId);
-  if(pIdx>-1) return cosVal(cosData, cosItems[pIdx], pIdx);
-  if(ppIdx>-1) return cosVal(prevData, prevItems[ppIdx], ppIdx);
+
+  // Basis check: is de parent actief?
+  let parentActief = false;
+  if(pIdx>-1) parentActief = cosVal(cosData, cosItems[pIdx], pIdx);
+  else if(ppIdx>-1) parentActief = cosVal(prevData, prevItems[ppIdx], ppIdx);
+  else return true;
+
+  if(!parentActief) return false;
+
+  // Extra check: toon_als_waarde — toon alleen bij specifieke waarden van de parent
+  if(item.toon_als_waarde) {
+    const toegestaan = item.toon_als_waarde.split(',').map(v=>v.trim());
+    // Haal de huidige geselecteerde waarde van de parent op
+    const parentWaarde = (cosData===state.cos ? state.cosRemarks : state.prevRemarks)?.[pId] || '';
+    return toegestaan.includes(parentWaarde);
+  }
+
   return true;
 }
 
@@ -1911,6 +1926,7 @@ let checklistGeladen = false;
 function dbItemNaarCheckItem(row) {
   const base = { id: row.id, label: row.label };
   if (row.toon_als) base.toon_als = row.toon_als;
+  if (row.toon_als_waarde) base.toon_als_waarde = row.toon_als_waarde;
   // Zorg dat opties altijd een array is
   let opties = row.opties;
   if (typeof opties === 'string') {
@@ -1973,7 +1989,14 @@ let currentStep=1,lineChart=null,barChart=null,dbData=[],heropendId=null;
 let privacyGetoond=false;
 function toonPrivacyModal(){document.getElementById('privacy-modal').style.display='flex';}
 function sluitPrivacyModal(){document.getElementById('privacy-modal').style.display='none';privacyGetoond=true;}
-function buildChecks(items,cId,prefix,pId,bId,count){const el=document.getElementById(cId);el.innerHTML='';items.forEach((item,i)=>{const isObj=typeof item==='object';const label=isObj?item.label:item;const key=isObj&&item.id?item.id:i;
+function buildChecks(items,cId,prefix,pId,bId,count){const el=document.getElementById(cId);el.innerHTML='';
+  // Pre-bereken welke items inline kinderen hebben (toon_als_waarde)
+  const inlineChildIds=new Set(items.filter(x=>typeof x==='object'&&x.toon_als&&x.toon_als_waarde).map(x=>x.id));
+
+  items.forEach((item,i)=>{const isObj=typeof item==='object';const label=isObj?item.label:item;const key=isObj&&item.id?item.id:i;
+
+  // Sla inline kinderen over — worden door parent gerenderd
+  if(isObj&&inlineChildIds.has(key)) return;
 
   // Conditionele logica: verberg als toon_als niet afgevinkt is
   if(isObj&&item.toon_als){
@@ -2002,6 +2025,8 @@ function buildChecks(items,cId,prefix,pId,bId,count){const el=document.getElemen
     div.className = 'check-item' + (isAfgevinkt ? ' completed' : '');
     const placeholderOpt = isVerplicht ? `<option value="" ${savedVal===''?' selected':''} disabled>— Maak een keuze —</option>` : '';
     const optHtml = placeholderOpt + opties.map(o=>`<option value="${o}"${savedVal===o?' selected':''}>${o}</option>`).join('');
+    // Check of dit item inline kinderen heeft
+    const heeftInlineKinderen = items.some(x=>typeof x==='object'&&x.toon_als===String(key)&&x.toon_als_waarde);
     extra=`<select class="remarks-input${isVerplicht&&savedVal===''?' remarks-input-required':''}" onchange="
       state['${prefix}Remarks']['${key}']=this.value;
       state['${prefix}']['${key}']=this.value!=='';
@@ -2012,9 +2037,37 @@ function buildChecks(items,cId,prefix,pId,bId,count){const el=document.getElemen
       if(tick)tick.style.color=this.value!==''?'var(--green)':'var(--text3)';
       this.classList.toggle('remarks-input-required',this.value==='');
       updateProgress('${prefix}','${pId}','${bId}',${count});
+      ${heeftInlineKinderen?`updateInlineKinderen('${prefix}','${key}',this.value,'${pId}','${bId}',${count});`:''}
     ">${optHtml}</select>`;
     div.innerHTML=`<div class="check-label">${label}${isVerplicht?'<span style="color:var(--red);margin-left:3px;">*</span>':''}</div>${extra}<span class="sel-tick" style="font-size:18px;color:${isAfgevinkt?'var(--green)':'var(--text3)'};flex-shrink:0;margin-top:1px;">${isAfgevinkt?'✓':'○'}</span>`;
     el.appendChild(div);
+    // Render inline kinderen direct na de parent
+    items.filter(x=>typeof x==='object'&&x.toon_als===String(key)&&x.toon_als_waarde).forEach(kind=>{
+      const kindKey=kind.id;
+      const toonBij=kind.toon_als_waarde.split(',').map(v=>v.trim());
+      const isVis=toonBij.includes(savedVal);
+      const huidigeKindVal=state[prefix+'Remarks'][kindKey]||'';
+      const kindDiv=document.createElement('div');
+      kindDiv.id=prefix+'-inline-'+kindKey;
+      kindDiv.style.cssText=`display:${isVis?'flex':'none'};align-items:center;gap:10px;padding:10px 14px 10px 24px;border-bottom:1px solid var(--border);border-left:3px solid var(--accent);background:var(--accent-glow);`;
+      kindDiv.className='check-item'+(huidigeKindVal?' completed':'');
+      kindDiv.innerHTML=`<div class="check-label" style="flex:1;">${kind.label}<span style="color:var(--red);margin-left:3px;">*</span></div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+          <span style="font-size:13px;color:var(--text3);">€</span>
+          <input type="number" step="0.01" min="0" placeholder="0.00" value="${huidigeKindVal}"
+            style="width:90px;padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;text-align:right;"
+            oninput="
+              state['${prefix}Remarks']['${kindKey}']=this.value;
+              state['${prefix}']['${kindKey}']=this.value.trim()!=='';
+              const kd=document.getElementById('${prefix}-inline-${kindKey}');
+              if(this.value.trim()!==''){kd.classList.add('completed');}else{kd.classList.remove('completed');}
+              updateProgress('${prefix}','${pId}','${bId}',${count});
+            "/>
+          <span style="font-size:13px;color:var(--text3);">/uur</span>
+        </div>
+        <span style="font-size:18px;color:${huidigeKindVal?'var(--green)':'var(--text3)'};flex-shrink:0;">${huidigeKindVal?'✓':'○'}</span>`;
+      el.appendChild(kindDiv);
+    });
     return;
   } else if(isObj&&item.hasValue){
     extra=`<div style="display:flex;align-items:center;gap:6px;"><input class="accu-val" type="number" placeholder="0" value="${state.accuVal}" oninput="
@@ -2040,6 +2093,28 @@ function buildChecks(items,cId,prefix,pId,bId,count){const el=document.getElemen
     ">${state[prefix+'Remarks'][key]||''}</textarea>`;
   }
   div.innerHTML=`<div class="check-label">${label}</div>${extra}<label class="toggle"><input type="checkbox" ${state[prefix][key]?'checked':''} onchange="toggleCheck('${prefix}','${key}',this.checked,'${pId}','${bId}',${count})"/><div class="toggle-track"><div class="toggle-thumb"></div></div></label>`;el.appendChild(div);});updateProgress(prefix,pId,bId,count);}
+
+function updateInlineKinderen(prefix, parentKey, waarde, pId, bId, count) {
+  const items = prefix==='cos' ? cosItems : prevItems;
+  items.filter(x=>typeof x==='object'&&x.toon_als===parentKey&&x.toon_als_waarde).forEach(kind=>{
+    const el = document.getElementById(prefix+'-inline-'+kind.id);
+    if(!el) return;
+    const toegestaan = kind.toon_als_waarde.split(',').map(v=>v.trim());
+    const zichtbaar = toegestaan.includes(waarde);
+    el.style.display = zichtbaar ? 'flex' : 'none';
+    if(!zichtbaar) {
+      // Reset waarde als verborgen
+      state[prefix][kind.id] = false;
+      state[prefix+'Remarks'][kind.id] = '';
+      const inp = el.querySelector('input[type=number]');
+      if(inp) inp.value = '';
+      el.classList.remove('completed');
+      const tick = el.querySelector('span:last-child');
+      if(tick) { tick.textContent='○'; tick.style.color='var(--text3)'; }
+    }
+    updateProgress(prefix, pId, bId, count);
+  });
+}
 function toggleCheck(prefix,idx,val,pId,bId,count){
   state[prefix][idx]=val;
   const item=document.getElementById(prefix+'-item-'+idx);
