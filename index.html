@@ -2584,6 +2584,9 @@ async function laadInstellingen() {
       if (row.sleutel === 'min_checklist_pct') {
         dynamischMinPct = (parseInt(row.waarde) || 55) / 100;
       }
+      if (row.sleutel === 'tarief_zones') {
+        try { localStorage.setItem('cwt_tarief_zones', row.waarde); } catch(_) {}
+      }
     });
     // Update UI als superbeheer open is
     const dagEl = document.getElementById('inst-dagen');
@@ -3036,6 +3039,54 @@ function clearBulkSel(){bulkSel.clear();document.querySelectorAll('.tbl-bulk-cb'
 async function bulkGoedkeuren(){if(!bulkSel.size)return;if(!confirm(`${bulkSel.size} formulieren goedkeuren?`))return;const ids=[...bulkSel];let ok=0;for(const id of ids){try{await sbFetch('onderhoud?id=eq.'+id,{method:'PATCH',body:JSON.stringify({status:'goedgekeurd'})});ok++;}catch(_){}}clearBulkSel();invalideerCache();renderDashboard();toast(`✅ ${ok} formulieren goedgekeurd`);logAudit(userName,userRole,'bulk goedgekeurd',`${ok} formulieren goedgekeurd`);}
 async function bulkAfkeuren(){if(!bulkSel.size)return;const reden=prompt('Reden voor afkeuring (verplicht):');if(!reden)return;const ids=[...bulkSel];let ok=0;for(const id of ids){try{await sbFetch('onderhoud?id=eq.'+id,{method:'PATCH',body:JSON.stringify({status:'afgekeurd',afkeur_reden:reden})});ok++;}catch(_){}}clearBulkSel();invalideerCache();renderDashboard();toast(`❌ ${ok} formulieren afgekeurd`);}
 
+
+/* ===== TARIEVEN PER ZONE ===== */
+// Fallback tarieven als instellingen nog niet geladen zijn
+const TARIEF_FALLBACK = {
+  centrum: 6.42,      // Sector 1-6, 11, 12, 20
+  centrumring: 3.20,  // Sector 50
+  overig: 2.24        // Sector 60-99, 100+
+};
+
+function getTariefVoorZone(zone) {
+  const z = parseInt(zone);
+  if (isNaN(z)) return null;
+  // Probeer uit instellingen
+  try {
+    const raw = localStorage.getItem('cwt_tarief_zones');
+    if (raw) {
+      const cfg = JSON.parse(raw);
+      for (const regel of cfg.regels||[]) {
+        if (regel.zones && regel.zones.includes(z)) return regel.tarief;
+        if (regel.min !== undefined && regel.max !== undefined && z >= regel.min && z <= regel.max) return regel.tarief;
+        if (regel.min !== undefined && regel.max === undefined && z >= regel.min) return regel.tarief;
+      }
+    }
+  } catch(_) {}
+  // Fallback
+  if ([1,2,3,4,5,6,11,12,20].includes(z)) return TARIEF_FALLBACK.centrum;
+  if (z === 50) return TARIEF_FALLBACK.centrumring;
+  if (z >= 60) return TARIEF_FALLBACK.overig;
+  return null;
+}
+
+function tariefKlopt(gemeld, zone) {
+  const verwacht = getTariefVoorZone(zone);
+  if (!verwacht || !gemeld) return null; // onbekend
+  const diff = Math.abs(parseFloat(gemeld) - verwacht);
+  return diff < 0.05; // tolerantie van 5 cent
+}
+
+function tariefBadge(gemeld, zone) {
+  const verwacht = getTariefVoorZone(zone);
+  if (!verwacht) return `<span style="font-size:11px;color:var(--text3);">Zone onbekend</span>`;
+  const klopt = tariefKlopt(gemeld, zone);
+  if (klopt === null) return '';
+  return klopt
+    ? `<span style="color:var(--green);font-weight:700;">✅ Klopt (verwacht €${verwacht.toFixed(2)})</span>`
+    : `<span style="color:var(--red);font-weight:700;">❌ Afwijking! Verwacht €${verwacht.toFixed(2)}</span>`;
+}
+
 /* ===== TARIEF WIDGET ===== */
 async function buildTariefWidget() {
   const el = document.getElementById('tarief-inhoud');
@@ -3049,42 +3100,77 @@ async function buildTariefWidget() {
     if(cnt) cnt.textContent = 'Nog geen tarieven geregistreerd';
     return;
   }
-  if(cnt) cnt.textContent = `${data.length} tarieven geregistreerd`;
 
-  // Groepeer per automaat: laatste geregistreerde tarief
+  // Groepeer per automaat: laatste registratie
   const perAuto = {};
-  data.sort((a,b)=>String(a.datum).localeCompare(String(b.datum)))
-    .forEach(x => {
-      const t = parseFloat((x.prev_remarks||{})['prev_tarief_display']||0);
-      if(!perAuto[x.automaatnr]) perAuto[x.automaatnr] = {nr:x.automaatnr, loc:x.locatie||'', zone:x.zone||'', tarieven:[], laatste:x.datum};
-      perAuto[x.automaatnr].tarieven.push(t);
-      if(x.datum >= perAuto[x.automaatnr].laatste) {
-        perAuto[x.automaatnr].laatste = x.datum;
-        perAuto[x.automaatnr].laaatsteT = t;
-      }
-    });
+  data.sort((a,b)=>String(a.datum).localeCompare(String(b.datum))).forEach(x => {
+    const t = parseFloat((x.prev_remarks||{})['prev_tarief_display']||0);
+    if(!perAuto[x.automaatnr]) perAuto[x.automaatnr] = {nr:x.automaatnr, loc:x.locatie||'', zone:x.zone||'', tarieven:[], laatste:x.datum, laaatsteT:t};
+    perAuto[x.automaatnr].tarieven.push(t);
+    if(x.datum >= perAuto[x.automaatnr].laatste) { perAuto[x.automaatnr].laatste=x.datum; perAuto[x.automaatnr].laaatsteT=t; }
+  });
+
+  const gesorteerd = Object.values(perAuto).sort((a,b)=>Number(a.zone)-Number(b.zone));
+  const afwijkingen = gesorteerd.filter(a => tariefKlopt(a.laaatsteT, a.zone) === false);
+  const correct = gesorteerd.filter(a => tariefKlopt(a.laaatsteT, a.zone) === true);
+  const onbekend = gesorteerd.filter(a => tariefKlopt(a.laaatsteT, a.zone) === null);
+
+  if(cnt) cnt.textContent = `${gesorteerd.length} automaten — ${correct.length} ✅ correct · ${afwijkingen.length} ❌ afwijking · ${onbekend.length} ❓ onbekend`;
 
   el.innerHTML = `
+    <!-- KPI samenvatting -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">
+      <div class="kpi"><div class="kpi-val green">${correct.length}</div><div class="kpi-label">✅ Tarief correct</div></div>
+      <div class="kpi"><div class="kpi-val red">${afwijkingen.length}</div><div class="kpi-label">❌ Afwijking gevonden</div></div>
+      <div class="kpi"><div class="kpi-val" style="color:var(--text3);">${onbekend.length}</div><div class="kpi-label">❓ Zone onbekend</div></div>
+    </div>
+
+    ${afwijkingen.length > 0 ? `
+    <!-- Afwijkingen bovenaan -->
+    <div style="background:var(--red-bg);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:14px;margin-bottom:14px;">
+      <div style="font-weight:700;font-size:13px;color:var(--red);margin-bottom:10px;">❌ Tariefafwijkingen (${afwijkingen.length})</div>
+      ${afwijkingen.map(a => {
+        const verwacht = getTariefVoorZone(a.zone);
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(239,68,68,.2);cursor:pointer;" onclick="filterOpAutomaat('${a.nr}')">
+          <div style="font-weight:700;color:var(--accent);min-width:40px;">${a.nr}</div>
+          <div style="flex:1;font-size:12px;color:var(--text2);">${a.loc.substring(0,35)}</div>
+          <div style="font-size:12px;text-align:right;">
+            <span style="color:var(--red);font-weight:700;">€${a.laaatsteT.toFixed(2)}</span>
+            <span style="color:var(--text3);"> → verwacht </span>
+            <span style="color:var(--green);font-weight:700;">€${verwacht?.toFixed(2)||'?'}</span>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>` : ''}
+
+    <!-- Alle automaten met tarief -->
     <div style="overflow-x:auto;border-radius:10px;border:1px solid var(--border);">
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <thead><tr style="background:var(--surface2);font-size:11px;color:var(--text3);font-weight:600;letter-spacing:.4px;">
           <th style="padding:10px 14px;text-align:left;">AUTOMAAT</th>
           <th style="padding:10px 8px;text-align:left;">LOCATIE</th>
           <th style="padding:10px 8px;text-align:center;">ZONE</th>
-          <th style="padding:10px 8px;text-align:center;">LAATSTE TARIEF</th>
-          <th style="padding:10px 8px;text-align:center;">CHECKS</th>
+          <th style="padding:10px 8px;text-align:center;">VERWACHT</th>
+          <th style="padding:10px 8px;text-align:center;">GEMELD</th>
+          <th style="padding:10px 8px;text-align:center;">STATUS</th>
           <th style="padding:10px 8px;text-align:center;">LAATSTE CHECK</th>
         </tr></thead>
         <tbody>
-          ${Object.values(perAuto).sort((a,b)=>Number(a.zone)-Number(b.zone)).map(a => `
-            <tr style="border-top:1px solid var(--border);">
+          ${gesorteerd.map(a => {
+            const verwacht = getTariefVoorZone(a.zone);
+            const klopt = tariefKlopt(a.laaatsteT, a.zone);
+            const status = klopt===true ? '✅' : klopt===false ? '❌' : '❓';
+            const statusKl = klopt===true ? 'var(--green)' : klopt===false ? 'var(--red)' : 'var(--text3)';
+            return `<tr style="border-top:1px solid var(--border);${klopt===false?'background:var(--red-bg);':''}">
               <td style="padding:9px 14px;font-weight:700;color:var(--accent);">${a.nr}</td>
-              <td style="padding:9px 8px;font-size:12px;color:var(--text2);">${(a.loc||'').substring(0,35)}</td>
+              <td style="padding:9px 8px;font-size:12px;color:var(--text2);">${a.loc.substring(0,30)}</td>
               <td style="padding:9px 8px;text-align:center;color:var(--text3);">${a.zone||'?'}</td>
-              <td style="padding:9px 8px;text-align:center;font-weight:700;color:var(--green);">€${a.laaatsteT?.toFixed(2)||'—'}/uur</td>
-              <td style="padding:9px 8px;text-align:center;">${a.tarieven.length}</td>
-              <td style="padding:9px 8px;text-align:center;font-size:12px;color:var(--text3);">${formatDatum(a.laatste)}</td>
-            </tr>`).join('')}
+              <td style="padding:9px 8px;text-align:center;color:var(--text3);">${verwacht?'€'+verwacht.toFixed(2):'—'}</td>
+              <td style="padding:9px 8px;text-align:center;font-weight:700;color:${klopt===false?'var(--red)':'var(--green)'};">€${a.laaatsteT.toFixed(2)}</td>
+              <td style="padding:9px 8px;text-align:center;font-size:16px;color:${statusKl};">${status}</td>
+              <td style="padding:9px 8px;text-align:center;font-size:11px;color:var(--text3);">${a.laatste?new Date(a.laatste).toLocaleDateString('nl-NL'):'—'}</td>
+            </tr>`;
+          }).join('')}
         </tbody>
       </table>
     </div>`;
@@ -4572,7 +4658,7 @@ async function openDetail(id){
   cosItems.forEach((item,i)=>{if(!isZichtbaar(item,cos,prev,cosR,prevR)) return;const label=typeof item==='object'?item.label:item;const ok=cosVal(cos,item,i);const rem=cosRem(cosR,item,i);html+=`<div class="detail-check-row"><div class="check-dot ${ok?'ok':'nok'}"></div><div class="dcheck-label">${label}</div>${rem?`<div class="dcheck-remark">${rem}</div>`:''}</div>`;});
   html+='</div>';
   html+='<div class="detail-section"><div class="detail-section-title">Preventief onderhoud</div>';
-  prevItems.forEach((item,i)=>{if(!isZichtbaar(item,cos,prev,cosR,prevR)) return;const label=typeof item==='object'?item.label:item;const ok=cosVal(prev,item,i);const rem=cosRem(prevR,item,i);const accuNote=(typeof item==='object'&&item.hasValue&&x.accu_val&&item.id!=='prev_tarief_display')?`<div class="dcheck-remark">${x.accu_val} V</div>`:'';const tariefNote=(typeof item==='object'&&item.id==='prev_tarief_display'&&(prevR||{})['prev_tarief_display'])?`<div class="dcheck-remark">💰 €${(prevR||{})['prev_tarief_display']}/uur</div>`:'';html+=`<div class="detail-check-row"><div class="check-dot ${ok?'ok':'nok'}"></div><div class="dcheck-label">${label}</div>${rem?`<div class="dcheck-remark">${rem}</div>`:''}${accuNote}${tariefNote}</div>`;});
+  prevItems.forEach((item,i)=>{if(!isZichtbaar(item,cos,prev,cosR,prevR)) return;const label=typeof item==='object'?item.label:item;const ok=cosVal(prev,item,i);const rem=cosRem(prevR,item,i);const accuNote=(typeof item==='object'&&item.hasValue&&x.accu_val&&item.id!=='prev_tarief_display')?`<div class="dcheck-remark">${x.accu_val} V</div>`:'';const tariefNote=(typeof item==='object'&&item.id==='prev_tarief_display'&&(prevR||{})['prev_tarief_display'])?`<div class="dcheck-remark">💰 €${(prevR||{})['prev_tarief_display']}/uur &nbsp;${tariefBadge((prevR||{})['prev_tarief_display'],x.zone)}</div>`:'';html+=`<div class="detail-check-row"><div class="check-dot ${ok?'ok':'nok'}"></div><div class="dcheck-label">${label}</div>${rem?`<div class="dcheck-remark">${rem}</div>`:''}${accuNote}${tariefNote}</div>`;});
   html+='</div>';
   if(x.bijzonderheden)html+=`<div class="detail-notes"><div class="detail-section-title">Overige bijzonderheden</div><div class="detail-notes-text">${x.bijzonderheden}</div></div>`;
   if(x.kwitantie||x.fotos?.length||x.foto_base64){
@@ -6272,7 +6358,7 @@ function openMijnDetail(id) {
     if(!isZichtbaar(item,cos,prev)) return;
     const label=typeof item==='object'?item.label:item;
     const ok=cosVal(prev,item,i); const rem=cosRem(prevR,item,i);
-    const accuNote=(typeof item==='object'&&item.hasValue&&x.accu_val&&item.id!=='prev_tarief_display')?`<div class="dcheck-remark">${x.accu_val} V</div>`:'';const tariefNoteMijn=(typeof item==='object'&&item.id==='prev_tarief_display'&&(prevR||{})['prev_tarief_display'])?`<div class="dcheck-remark">💰 €${(prevR||{})['prev_tarief_display']}/uur</div>`:"";html+=`<div class="detail-check-row"><div class="check-dot ${ok?'ok':'nok'}"></div><div class="dcheck-label">${label}</div>${rem?`<div class="dcheck-remark">${rem}</div>`:''}${accuNote}${tariefNoteMijn}</div>`;
+    const accuNote=(typeof item==='object'&&item.hasValue&&x.accu_val&&item.id!=='prev_tarief_display')?`<div class="dcheck-remark">${x.accu_val} V</div>`:'';const tariefNoteMijn=(typeof item==='object'&&item.id==='prev_tarief_display'&&(prevR||{})['prev_tarief_display'])?`<div class="dcheck-remark">💰 €${(prevR||{})['prev_tarief_display']}/uur &nbsp;${tariefBadge((prevR||{})["prev_tarief_display"],x.zone)}</div>`:"";html+=`<div class="detail-check-row"><div class="check-dot ${ok?'ok':'nok'}"></div><div class="dcheck-label">${label}</div>${rem?`<div class="dcheck-remark">${rem}</div>`:''}${accuNote}${tariefNoteMijn}</div>`;
   });
   html += '</div>';
 
