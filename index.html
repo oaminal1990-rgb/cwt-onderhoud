@@ -1084,6 +1084,23 @@ select.filter-input option{background:var(--surface2);}
       </div>
     </div>
 
+    <!-- TARIEF AFWIJKINGEN -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header" onclick="superToggle('tarief')" style="cursor:pointer;user-select:none;">
+        <div class="card-icon amber">💰</div>
+        <div><div class="card-title">Tarief controle</div><div class="card-subtitle" id="tarief-count">Uurtarieven geregistreerd bij testbetalingen</div></div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;" onclick="event.stopPropagation()">
+          <button class="btn btn-ghost" onclick="buildTariefWidget()" style="font-size:12px;">↻</button>
+          <button class="btn btn-ghost" onclick="exportTariefExcel()" style="font-size:12px;">📊 Excel</button>
+          <button class="btn btn-ghost" onclick="exportTariefPDF()" style="font-size:12px;">📄 PDF</button>
+        </div>
+        <span id="sb-chev-tarief" style="margin-left:8px;font-size:18px;color:var(--text3);transition:transform .2s;">▼</span>
+      </div>
+      <div id="sb-body-tarief" style="display:none;padding:20px;">
+        <div id="tarief-inhoud"><div class="plan-empty">Klik ↻ om te laden</div></div>
+      </div>
+    </div>
+
     <!-- AUTOMAAT DOSSIER -->
     <div class="card" style="margin-bottom:20px;">
       <div class="card-header" onclick="superToggle('dossier')" style="cursor:pointer;user-select:none;">
@@ -1795,7 +1812,7 @@ function cosRem(data, item, i) {
   return data[k] || data[i] || '';
 }
 // Helper: check of conditioneel item getoond moet worden
-function isZichtbaar(item, cosData, prevData) {
+function isZichtbaar(item, cosData, prevData, cosRem, prevRem) {
   if(!item||typeof item!=='object'||!item.toon_als) return true;
   const pId = item.toon_als;
   const pIdx = cosItems.findIndex(x=>typeof x==='object'&&x.id===pId);
@@ -1812,8 +1829,10 @@ function isZichtbaar(item, cosData, prevData) {
   // Extra check: toon_als_waarde — toon alleen bij specifieke waarden van de parent
   if(item.toon_als_waarde) {
     const toegestaan = item.toon_als_waarde.split(',').map(v=>v.trim());
-    // Haal de huidige geselecteerde waarde van de parent op
-    const parentWaarde = (cosData===state.cos ? state.cosRemarks : state.prevRemarks)?.[pId] || '';
+    // Gebruik meegegeven remarks of val-state als fallback
+    const rCos = cosRem || state.cosRemarks;
+    const rPrev = prevRem || state.prevRemarks;
+    const parentWaarde = (pIdx>-1 ? rCos : rPrev)?.[pId] || '';
     return toegestaan.includes(parentWaarde);
   }
 
@@ -2293,10 +2312,11 @@ async function saveForm(){
         await renderDashboard();
         switchTab('dash');
       } else {
-        // Medewerker: cache invalideren zodat dashboard/achterstallig bijgewerkt is als beheerder inlogt
+        // Medewerker: cache invalideren + mijn formulieren updaten
         invalideerCache();
+        mijnData = [];
         newForm();
-        setTimeout(()=>toast('📋 Nieuw formulier klaar — vul het volgende in'),300);
+        setTimeout(()=>{renderMijn();toast('📋 Nieuw formulier klaar — vul het volgende in');},300);
       }
     },1500);
   }catch(e){
@@ -2617,6 +2637,7 @@ function superToggle(id) {
     if (id === 'sla') buildSlaWidget();
     if (id === 'autostatus') buildAutostatuWidget();
     if (id === 'vergelijk') buildVergelijkWidget();
+    if (id === 'tarief') buildTariefWidget();
     if (id === 'exportmont') { const s=document.getElementById('export-monteur-keuze'); if(s&&dynamischeMonteurs) s.innerHTML='<option value="">— Kies monteur —</option>'+dynamischeMonteurs.map(m=>`<option value="${m}">${m}</option>`).join(''); }
   }
 }
@@ -3015,7 +3036,176 @@ function clearBulkSel(){bulkSel.clear();document.querySelectorAll('.tbl-bulk-cb'
 async function bulkGoedkeuren(){if(!bulkSel.size)return;if(!confirm(`${bulkSel.size} formulieren goedkeuren?`))return;const ids=[...bulkSel];let ok=0;for(const id of ids){try{await sbFetch('onderhoud?id=eq.'+id,{method:'PATCH',body:JSON.stringify({status:'goedgekeurd'})});ok++;}catch(_){}}clearBulkSel();invalideerCache();renderDashboard();toast(`✅ ${ok} formulieren goedgekeurd`);logAudit(userName,userRole,'bulk goedgekeurd',`${ok} formulieren goedgekeurd`);}
 async function bulkAfkeuren(){if(!bulkSel.size)return;const reden=prompt('Reden voor afkeuring (verplicht):');if(!reden)return;const ids=[...bulkSel];let ok=0;for(const id of ids){try{await sbFetch('onderhoud?id=eq.'+id,{method:'PATCH',body:JSON.stringify({status:'afgekeurd',afkeur_reden:reden})});ok++;}catch(_){}}clearBulkSel();invalideerCache();renderDashboard();toast(`❌ ${ok} formulieren afgekeurd`);}
 
-/* ===== EXPORT FUNCTIES DASHBOARD WIDGETS ===== */
+/* ===== TARIEF WIDGET ===== */
+async function buildTariefWidget() {
+  const el = document.getElementById('tarief-inhoud');
+  const cnt = document.getElementById('tarief-count');
+  if (!el) return;
+  el.innerHTML = `<div style="text-align:center;padding:20px;"><span class="spinner"></span></div>`;
+  await ensureDbData();
+  const data = (dbData||[]).filter(x => (x.prev_remarks||{})['prev_tarief_display']);
+  if (!data.length) {
+    el.innerHTML = `<div class="plan-empty">Nog geen tarieven geregistreerd</div>`;
+    if(cnt) cnt.textContent = 'Nog geen tarieven geregistreerd';
+    return;
+  }
+  if(cnt) cnt.textContent = `${data.length} tarieven geregistreerd`;
+
+  // Groepeer per automaat: laatste geregistreerde tarief
+  const perAuto = {};
+  data.sort((a,b)=>String(a.datum).localeCompare(String(b.datum)))
+    .forEach(x => {
+      const t = parseFloat((x.prev_remarks||{})['prev_tarief_display']||0);
+      if(!perAuto[x.automaatnr]) perAuto[x.automaatnr] = {nr:x.automaatnr, loc:x.locatie||'', zone:x.zone||'', tarieven:[], laatste:x.datum};
+      perAuto[x.automaatnr].tarieven.push(t);
+      if(x.datum >= perAuto[x.automaatnr].laatste) {
+        perAuto[x.automaatnr].laatste = x.datum;
+        perAuto[x.automaatnr].laaatsteT = t;
+      }
+    });
+
+  el.innerHTML = `
+    <div style="overflow-x:auto;border-radius:10px;border:1px solid var(--border);">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="background:var(--surface2);font-size:11px;color:var(--text3);font-weight:600;letter-spacing:.4px;">
+          <th style="padding:10px 14px;text-align:left;">AUTOMAAT</th>
+          <th style="padding:10px 8px;text-align:left;">LOCATIE</th>
+          <th style="padding:10px 8px;text-align:center;">ZONE</th>
+          <th style="padding:10px 8px;text-align:center;">LAATSTE TARIEF</th>
+          <th style="padding:10px 8px;text-align:center;">CHECKS</th>
+          <th style="padding:10px 8px;text-align:center;">LAATSTE CHECK</th>
+        </tr></thead>
+        <tbody>
+          ${Object.values(perAuto).sort((a,b)=>Number(a.zone)-Number(b.zone)).map(a => `
+            <tr style="border-top:1px solid var(--border);">
+              <td style="padding:9px 14px;font-weight:700;color:var(--accent);">${a.nr}</td>
+              <td style="padding:9px 8px;font-size:12px;color:var(--text2);">${(a.loc||'').substring(0,35)}</td>
+              <td style="padding:9px 8px;text-align:center;color:var(--text3);">${a.zone||'?'}</td>
+              <td style="padding:9px 8px;text-align:center;font-weight:700;color:var(--green);">€${a.laaatsteT?.toFixed(2)||'—'}/uur</td>
+              <td style="padding:9px 8px;text-align:center;">${a.tarieven.length}</td>
+              <td style="padding:9px 8px;text-align:center;font-size:12px;color:var(--text3);">${formatDatum(a.laatste)}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+async function exportTariefPDF() {
+  await ensureDbData();
+  const data = (dbData||[]).filter(x => (x.prev_remarks||{})['prev_tarief_display']);
+  if (!data.length) { toast('⚠️ Geen tarieven gevonden'); return; }
+  toast('⏳ PDF...');
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF({orientation:'landscape', unit:'mm', format:'a4'});
+  const pw = doc.internal.pageSize.getWidth();
+  const vandaag = new Date().toLocaleDateString('nl-NL');
+
+  // Header
+  doc.setFillColor(217,119,6);
+  doc.roundedRect(10,8,pw-20,14,2,2,'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(13);
+  doc.text(`CWT S3 — Tarief controle (${data.length} registraties)`, pw/2, 17, {align:'center'});
+  doc.setTextColor(30,41,59);
+
+  // Groepeer per automaat
+  const perAuto = {};
+  data.sort((a,b)=>String(a.datum).localeCompare(String(b.datum))).forEach(x => {
+    const t = parseFloat((x.prev_remarks||{})['prev_tarief_display']||0);
+    if(!perAuto[x.automaatnr]) perAuto[x.automaatnr] = {nr:x.automaatnr, loc:x.locatie||'', zone:x.zone||'', tarieven:[], laatste:x.datum, laaatsteT:t};
+    perAuto[x.automaatnr].tarieven.push(t);
+    if(x.datum >= perAuto[x.automaatnr].laatste) { perAuto[x.automaatnr].laatste=x.datum; perAuto[x.automaatnr].laaatsteT=t; }
+  });
+
+  doc.autoTable({
+    head:[['Automaat','Locatie','Zone','Laatste tarief','Aantal checks','Laatste check']],
+    body: Object.values(perAuto).sort((a,b)=>Number(a.zone)-Number(b.zone)).map(a => [
+      a.nr,
+      (a.loc||'').substring(0,40),
+      a.zone||'?',
+      a.laaatsteT ? `€${a.laaatsteT.toFixed(2)}/uur` : '—',
+      a.tarieven.length,
+      a.laatste ? new Date(a.laatste).toLocaleDateString('nl-NL') : '—'
+    ]),
+    startY: 26, margin:{left:10,right:10},
+    styles:{fontSize:9, cellPadding:3},
+    headStyles:{fillColor:[217,119,6], textColor:255, fontStyle:'bold'},
+    alternateRowStyles:{fillColor:[255,251,235]},
+    columnStyles:{
+      0:{cellWidth:20, fontStyle:'bold', textColor:[30,58,138]},
+      2:{cellWidth:14, halign:'center'},
+      3:{cellWidth:28, halign:'center', fontStyle:'bold', textColor:[22,163,74]},
+      4:{cellWidth:22, halign:'center'},
+      5:{cellWidth:26, halign:'center'}
+    }
+  });
+
+  // Detail tabel — alle registraties
+  doc.addPage();
+  doc.setFillColor(217,119,6);
+  doc.roundedRect(10,8,pw-20,14,2,2,'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(13);
+  doc.text('CWT S3 — Alle tarief registraties', pw/2, 17, {align:'center'});
+
+  doc.autoTable({
+    head:[['Datum','Automaat','Locatie','Zone','Monteur','Testbetaling','Tarief display']],
+    body: data.sort((a,b)=>String(b.datum).localeCompare(String(a.datum))).map(x => [
+      x.datum ? new Date(x.datum).toLocaleDateString('nl-NL') : '',
+      x.automaatnr||'',
+      (x.locatie||'').substring(0,35),
+      x.zone||'',
+      x.mobilist||'',
+      (x.prev_remarks||{})['prev_test']||'',
+      (x.prev_remarks||{})['prev_tarief_display'] ? `€${parseFloat((x.prev_remarks||{})['prev_tarief_display']).toFixed(2)}/uur` : '—'
+    ]),
+    startY: 26, margin:{left:10,right:10},
+    styles:{fontSize:8, cellPadding:2.5},
+    headStyles:{fillColor:[217,119,6], textColor:255, fontStyle:'bold'},
+    alternateRowStyles:{fillColor:[255,251,235]},
+    columnStyles:{
+      0:{cellWidth:22, halign:'center'},
+      1:{cellWidth:18, fontStyle:'bold', textColor:[30,58,138]},
+      2:{cellWidth:55},
+      3:{cellWidth:12, halign:'center'},
+      4:{cellWidth:22},
+      5:{cellWidth:24, halign:'center'},
+      6:{cellWidth:24, halign:'center', fontStyle:'bold', textColor:[22,163,74]}
+    }
+  });
+
+  // Footer alle pagina's
+  const pages = doc.internal.getNumberOfPages();
+  for(let i=1;i<=pages;i++){
+    doc.setPage(i); doc.setFontSize(7); doc.setTextColor(148,163,184);
+    doc.text(`CWT S3 Onderhoud · ${vandaag} · Pagina ${i} van ${pages}`, pw/2, doc.internal.pageSize.getHeight()-4, {align:'center'});
+  }
+
+  doc.save(`CWT_Tarief_${new Date().toISOString().split('T')[0]}.pdf`);
+  toast('📄 Tarief PDF gedownload');
+}
+
+function exportTariefExcel() {
+  if (!dbData) { toast('⚠️ Laad eerst data'); return; }
+  const data = dbData.filter(x => (x.prev_remarks||{})['prev_tarief_display']);
+  if (!data.length) { toast('⚠️ Geen tarieven gevonden'); return; }
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['CWT S3 — Tarief controle'],
+    [`Gegenereerd: ${new Date().toLocaleDateString('nl-NL')} · ${data.length} registraties`],
+    [],
+    ['Datum','Automaat','Locatie','Zone','Monteur','Testbetaling','Tarief op display','Verwacht tarief'],
+    ...data.sort((a,b)=>String(b.datum).localeCompare(String(a.datum))).map(x => {
+      const tarief = (x.prev_remarks||{})['prev_tarief_display']||'';
+      const test = (x.prev_remarks||{})['prev_test']||'';
+      return [x.datum||'',x.automaatnr||'',x.locatie||'',x.zone||'',x.mobilist||'',test,tarief?`€${tarief}`:'',' '];
+    })
+  ]);
+  ws['!cols'] = [12,14,38,8,14,14,16,16].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws, 'Tarief controle');
+  XLSX.writeFile(wb, `CWT_Tarief_${new Date().toISOString().split('T')[0]}.xlsx`);
+  toast('📊 Tarief Excel gedownload');
+}
+
+
 
 async function exportVolledigDashboardPDF() {
   toast('⏳ Volledig PDF rapport wordt aangemaakt...');
@@ -4027,10 +4217,10 @@ async function exportEnkelExcel(e, id) {
     ['Bijzonderheden',x.bijzonderheden||''],['Afkeur reden',x.afkeur_reden||''],
     [],
     ['COSMETISCH ONDERHOUD','Afgevinkt','Opmerking'],
-    ...cosItems.filter((item,i)=>isZichtbaar(item,x.cos,x.prev)).map((item,i)=>{const oi=cosItems.indexOf(item);const label=typeof item==='object'?item.label:item;return[label,cosVal(x.cos,item,oi)?'✓':'✗',cosRem(x.cos_remarks,item,oi)];}),
+    ...cosItems.filter((item,i)=>isZichtbaar(item,x.cos,x.prev,x.cos_remarks,x.prev_remarks)).map((item,i)=>{const oi=cosItems.indexOf(item);const label=typeof item==='object'?item.label:item;return[label,cosVal(x.cos,item,oi)?'✓':'✗',cosRem(x.cos_remarks,item,oi)];}),
     [],
     ['PREVENTIEF ONDERHOUD','Afgevinkt','Opmerking'],
-    ...prevItems.filter((item,i)=>isZichtbaar(item,x.cos,x.prev)).map((item,i)=>{const oi=prevItems.indexOf(item);const label=typeof item==='object'?item.label:item;return[label,cosVal(x.prev,item,oi)?'✓':'✗',cosRem(x.prev_remarks,item,oi)];}),
+    ...prevItems.filter((item,i)=>isZichtbaar(item,x.cos,x.prev,x.cos_remarks,x.prev_remarks)).map((item,i)=>{const oi=prevItems.indexOf(item);const label=typeof item==='object'?item.label:item;const rem=cosRem(x.prev_remarks,item,oi);const isTarief=typeof item==='object'&&item.id==='prev_tarief_display';const isAccu=typeof item==='object'&&item.hasValue&&!isTarief;const opmerking=isTarief&&rem?'€'+parseFloat(rem).toFixed(2)+'/uur':isAccu&&x.accu_val?x.accu_val+' V':rem;return[label,cosVal(x.prev,item,oi)?'✓':'✗',opmerking];}),
   ]);
   ws['!cols']=[{wch:44},{wch:10},{wch:32}];
   ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:2}},{s:{r:1,c:0},e:{r:1,c:2}}];
@@ -4277,7 +4467,7 @@ async function exportEnkelPDF(e, id) {
     head:[['Punt','Status','Opmerking']],
     body: cosItems.map((item,i)=>{
       const label=typeof item==='object'?item.label:item;
-      if(!isZichtbaar(item,x.cos,x.prev)) return null;
+      if(!isZichtbaar(item,x.cos,x.prev,x.cos_remarks,x.prev_remarks)) return null;
       const ok=cosVal(x.cos,item,i);
       return[label, ok?'✓ Afgevinkt':'✗ Niet afgevinkt', cosRem(x.cos_remarks,item,i)];
     }).filter(Boolean),
@@ -4297,11 +4487,15 @@ async function exportEnkelPDF(e, id) {
     head:[['Punt','Status','Opmerking']],
     body: prevItems.map((item,i)=>{
       const label=typeof item==='object'?item.label:item;
-      if(!isZichtbaar(item,x.cos,x.prev)) return null;
+      if(!isZichtbaar(item,x.cos,x.prev,x.cos_remarks,x.prev_remarks)) return null;
       const ok=cosVal(x.prev,item,i);
       const rem=cosRem(x.prev_remarks,item,i);
-      const accuNote = (typeof item==='object'&&item.hasValue&&x.accu_val)?x.accu_val+' V':'';
-      return[label, ok?'✓ Afgevinkt':'✗ Niet afgevinkt', rem||(accuNote)||''];
+      // Accu voltage (alleen voor prev_accu2, niet voor tarief)
+      const isAccu = typeof item==='object'&&item.hasValue&&item.id!=='prev_tarief_display';
+      const isTarief = typeof item==='object'&&item.id==='prev_tarief_display';
+      const accuNote = isAccu&&x.accu_val ? x.accu_val+' V' : '';
+      const tariefNote = isTarief&&rem ? '€'+parseFloat(rem).toFixed(2)+'/uur' : '';
+      return[label, ok?'✓ Afgevinkt':'✗ Niet afgevinkt', tariefNote||rem||accuNote||''];
     }).filter(Boolean),
     startY:y, margin:{left:10,right:10},
     styles:{fontSize:8,cellPadding:2},
@@ -4375,10 +4569,10 @@ async function openDetail(id){
   const cos=x.cos||{},cosR=x.cos_remarks||{};
   const prev=x.prev||{},prevR=x.prev_remarks||{};
   html+='<div class="detail-section"><div class="detail-section-title">Cosmetisch onderhoud</div>';
-  cosItems.forEach((item,i)=>{if(!isZichtbaar(item,cos,prev)) return;const label=typeof item==='object'?item.label:item;const ok=cosVal(cos,item,i);const rem=cosRem(cosR,item,i);html+=`<div class="detail-check-row"><div class="check-dot ${ok?'ok':'nok'}"></div><div class="dcheck-label">${label}</div>${rem?`<div class="dcheck-remark">${rem}</div>`:''}</div>`;});
+  cosItems.forEach((item,i)=>{if(!isZichtbaar(item,cos,prev,cosR,prevR)) return;const label=typeof item==='object'?item.label:item;const ok=cosVal(cos,item,i);const rem=cosRem(cosR,item,i);html+=`<div class="detail-check-row"><div class="check-dot ${ok?'ok':'nok'}"></div><div class="dcheck-label">${label}</div>${rem?`<div class="dcheck-remark">${rem}</div>`:''}</div>`;});
   html+='</div>';
   html+='<div class="detail-section"><div class="detail-section-title">Preventief onderhoud</div>';
-  prevItems.forEach((item,i)=>{if(!isZichtbaar(item,cos,prev)) return;const label=typeof item==='object'?item.label:item;const ok=cosVal(prev,item,i);const rem=cosRem(prevR,item,i);const accuNote=(typeof item==='object'&&item.hasValue&&x.accu_val)?`<div class="dcheck-remark">${x.accu_val} V</div>`:'';html+=`<div class="detail-check-row"><div class="check-dot ${ok?'ok':'nok'}"></div><div class="dcheck-label">${label}</div>${rem?`<div class="dcheck-remark">${rem}</div>`:''}${accuNote}</div>`;});
+  prevItems.forEach((item,i)=>{if(!isZichtbaar(item,cos,prev,cosR,prevR)) return;const label=typeof item==='object'?item.label:item;const ok=cosVal(prev,item,i);const rem=cosRem(prevR,item,i);const accuNote=(typeof item==='object'&&item.hasValue&&x.accu_val&&item.id!=='prev_tarief_display')?`<div class="dcheck-remark">${x.accu_val} V</div>`:'';const tariefNote=(typeof item==='object'&&item.id==='prev_tarief_display'&&(prevR||{})['prev_tarief_display'])?`<div class="dcheck-remark">💰 €${(prevR||{})['prev_tarief_display']}/uur</div>`:'';html+=`<div class="detail-check-row"><div class="check-dot ${ok?'ok':'nok'}"></div><div class="dcheck-label">${label}</div>${rem?`<div class="dcheck-remark">${rem}</div>`:''}${accuNote}${tariefNote}</div>`;});
   html+='</div>';
   if(x.bijzonderheden)html+=`<div class="detail-notes"><div class="detail-section-title">Overige bijzonderheden</div><div class="detail-notes-text">${x.bijzonderheden}</div></div>`;
   if(x.kwitantie||x.fotos?.length||x.foto_base64){
@@ -4468,11 +4662,13 @@ async function setStatus(id,status,reden=''){
     const idx=dbData.findIndex(x=>x.id===id);
     if(idx>-1){dbData[idx].status=status;dbData[idx].afkeur_reden=reden||'';dbData[idx].logboek=logboek;}
     closeDetailPanel();
-    // Altijd tabel en KPIs bijwerken
+    // Cache invalideren zodat widgets bijgewerkt zijn
+    invalideerCache();
+    // Tabel, KPIs en widgets bijwerken
     renderTable();
     updateKPIs(dbData);
-    // Altijd openstaande lijst bijwerken
     filterOpenstaande();
+    updateWidgetSubtitles(dbData);
     const toastLabels={'goedgekeurd':'✅ Goedgekeurd','afgekeurd':'❌ Afgekeurd','heropend':'🔄 Heropend'};
     toast(toastLabels[status]||'Status bijgewerkt');
     setTimeout(()=>openDetail(id),300);
@@ -6076,8 +6272,7 @@ function openMijnDetail(id) {
     if(!isZichtbaar(item,cos,prev)) return;
     const label=typeof item==='object'?item.label:item;
     const ok=cosVal(prev,item,i); const rem=cosRem(prevR,item,i);
-    const accuNote=(typeof item==='object'&&item.hasValue&&x.accu_val)?`<div class="dcheck-remark">${x.accu_val} V</div>`:'';
-    html+=`<div class="detail-check-row"><div class="check-dot ${ok?'ok':'nok'}"></div><div class="dcheck-label">${label}</div>${rem?`<div class="dcheck-remark">${rem}</div>`:''}${accuNote}</div>`;
+    const accuNote=(typeof item==='object'&&item.hasValue&&x.accu_val&&item.id!=='prev_tarief_display')?`<div class="dcheck-remark">${x.accu_val} V</div>`:'';const tariefNoteMijn=(typeof item==='object'&&item.id==='prev_tarief_display'&&(prevR||{})['prev_tarief_display'])?`<div class="dcheck-remark">💰 €${(prevR||{})['prev_tarief_display']}/uur</div>`:"";html+=`<div class="detail-check-row"><div class="check-dot ${ok?'ok':'nok'}"></div><div class="dcheck-label">${label}</div>${rem?`<div class="dcheck-remark">${rem}</div>`:''}${accuNote}${tariefNoteMijn}</div>`;
   });
   html += '</div>';
 
