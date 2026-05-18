@@ -802,8 +802,11 @@ select.filter-input option{background:var(--surface2);}
         <div style="font-size:20px;font-weight:600;letter-spacing:-.3px;">⚙️ Superbeheer</div>
         <div style="font-size:13px;color:var(--text3);margin-top:3px;">Gebruikersbeheer, instellingen en audit log</div>
       </div>
-      <button class="btn btn-primary" onclick="exportVolledigRapport()" style="min-height:40px;font-size:13px;">📦 Excel</button>
-      <button class="btn btn-primary" onclick="exportVolledigRapportPDF()" style="min-height:40px;font-size:13px;background:linear-gradient(135deg,#7c3aed,#a78bfa);">📦 PDF</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <button class="btn btn-primary" onclick="exportVolledigRapport()" style="min-height:40px;font-size:13px;">📦 Excel</button>
+        <button class="btn btn-primary" onclick="exportVolledigRapportPDF()" style="min-height:40px;font-size:13px;background:linear-gradient(135deg,#7c3aed,#a78bfa);">📦 PDF</button>
+        <button class="btn btn-primary" onclick="exportWekelijkseBackup()" style="min-height:40px;font-size:13px;background:linear-gradient(135deg,#16a34a,#22c55e);" title="Exporteer alle tabellen als volledige databasebackup">💾 Wekelijkse backup</button>
+      </div>
     </div>
 
     <!-- PRESTATIE PER MONTEUR -->
@@ -2549,6 +2552,104 @@ async function ensureDbData(){
     try{ dbData=await sbGet(); }catch(_){}
   }
 }
+
+async function exportWekelijkseBackup() {
+  toast('⏳ Backup aanmaken — alle tabellen laden...');
+  const datum = new Date().toISOString().split('T')[0];
+  const tijdstip = new Date().toLocaleString('nl-NL');
+  const wb = XLSX.utils.book_new();
+
+  // Helper: maak een tabblad
+  const addSheet = (naam, headers, rows) => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      [`CWT S3 — Backup: ${naam}`],
+      [`Gegenereerd: ${tijdstip}`],
+      [`Totaal: ${rows.length} rijen`],
+      [],
+      headers,
+      ...rows
+    ]);
+    // Kolombreedte automatisch
+    const cols = headers.map(h => ({ wch: Math.max(h.length + 2, 12) }));
+    ws['!cols'] = cols;
+    XLSX.utils.book_append_sheet(wb, ws, naam.substring(0, 31));
+  };
+
+  try {
+    // Tab 1: Alle formulieren (onderhoud) — volledige dataset
+    const onderhoud = await sbFetch(`onderhoud?order=datum.desc&select=id,datum,tijdstip,automaatnr,mobilist,locatie,zone,pct,status,afkeur_reden,totaal_kosten,bijzonderheden,accu_val,graffiti_doorgegeven,automaat_type,beheerder_notitie,gearchiveerd,created_at`);
+    addSheet('Formulieren', 
+      ['ID','Datum','Tijdstip','Automaat','Monteur','Locatie','Zone','Score%','Status','Afkeur reden','Kosten','Bijzonderheden','Accu V','Graffiti doorg.','Type','Notitie','Gearchiveerd','Aangemaakt'],
+      (onderhoud||[]).map(x => [x.id||'',x.datum||'',x.tijdstip||'',x.automaatnr||'',x.mobilist||'',x.locatie||'',x.zone||'',(x.pct||0)+'%',x.status||'',x.afkeur_reden||'',x.totaal_kosten||0,x.bijzonderheden||'',x.accu_val||'',x.graffiti_doorgegeven?'Ja':'Nee',x.automaat_type||'',x.beheerder_notitie||'',x.gearchiveerd?'Ja':'Nee',x.created_at||''])
+    );
+    toast('⏳ Formulieren ✅ — Planning laden...');
+
+    // Tab 2: Planning
+    const planning = await sbPlanGet().catch(() => []);
+    addSheet('Planning',
+      ['ID','Datum','Automaat','Locatie','Zone','Monteur','Omschrijving','Status','Aangemaakt'],
+      (Array.isArray(planning)?planning:[]).map(x => [x.id||'',x.datum||'',x.automaatnr||'',x.locatie||'',x.zone||'',x.monteur||'',x.omschrijving||'',x.status||'',x.created_at||''])
+    );
+    toast('⏳ Planning ✅ — Monteurs laden...');
+
+    // Tab 3: Monteurs
+    const monteurs = await sbFetch('rpc/get_monteurs', {method:'POST', body:'{}'});
+    addSheet('Monteurs',
+      ['ID','Naam','Actief','Aangemaakt'],
+      (monteurs||[]).map(x => [x.id||'',x.naam||'',x.actief!==false?'Ja':'Nee',x.created_at||''])
+    );
+
+    // Tab 4: Checklist items
+    const checklist = await sbFetch('checklist_items?order=sectie.asc,volgorde.asc');
+    addSheet('Checklist items',
+      ['ID','Sectie','Volgorde','Label','Type','Verplicht','Actief','Toon als'],
+      (checklist||[]).map(x => [x.id||'',x.sectie||'',x.volgorde||0,x.label||'',x.type||'',x.verplicht?'Ja':'Nee',x.actief?'Ja':'Nee',x.toon_als||''])
+    );
+
+    // Tab 5: Feedback
+    const feedback = await sbFetch('rpc/get_feedback', {method:'POST', body:JSON.stringify({p_limit:9999})});
+    addSheet('Feedback',
+      ['ID','Datum','Gebruiker','Rol','Type','Status','Omschrijving','Pagina'],
+      (feedback||[]).map(x => [x.id||'',x.created_at?new Date(x.created_at).toLocaleString('nl-NL'):'',x.gebruiker||'',x.rol||'',x.type||'',x.status||'',x.omschrijving||'',x.pagina||''])
+    );
+
+    // Tab 6: Audit log (laatste 1000)
+    const audit = await sbFetch('rpc/get_audit_log', {method:'POST', body:JSON.stringify({p_limit:1000})});
+    addSheet('Audit log',
+      ['ID','Tijdstip','Gebruiker','Rol','Actie','Details'],
+      (audit||[]).map(x => [x.id||'',x.created_at?new Date(x.created_at).toLocaleString('nl-NL'):'',x.gebruiker||'',x.rol||'',x.actie||'',x.details||''])
+    );
+
+    // Tab 7: Samenvatting
+    const summary = XLSX.utils.aoa_to_sheet([
+      ['CWT S3 — Wekelijkse backup samenvatting'],
+      [`Gegenereerd op: ${tijdstip}`],
+      [`Door: ${userName} (${userRole})`],
+      [],
+      ['Tabel', 'Aantal rijen'],
+      ['Formulieren (onderhoud)', (onderhoud||[]).length],
+      ['Planning', (Array.isArray(planning)?planning:[]).length],
+      ['Monteurs', (monteurs||[]).length],
+      ['Checklist items', (checklist||[]).length],
+      ['Feedback meldingen', (feedback||[]).length],
+      ['Audit log entries', (audit||[]).length],
+      [],
+      ['Bewaar dit bestand op een veilige locatie (bijv. OneDrive of Google Drive).'],
+    ]);
+    summary['!cols'] = [{wch:30},{wch:15}];
+    XLSX.utils.book_append_sheet(wb, summary, 'Samenvatting');
+
+    // Download
+    XLSX.writeFile(wb, `CWT_Backup_${datum}.xlsx`);
+    logAudit(userName, userRole, 'backup', `Wekelijkse backup geëxporteerd — ${(onderhoud||[]).length} formulieren`);
+    toast(`✅ Backup gedownload! Sla op als: CWT_Backup_${datum}.xlsx`);
+
+  } catch(e) {
+    toast('❌ Backup mislukt: ' + (e.message || 'Onbekende fout'));
+    console.error('Backup fout:', e);
+  }
+}
+
 
 async function exportVolledigRapport(){
   toast('⏳ Volledig rapport wordt gegenereerd...');await ensureDbData();
