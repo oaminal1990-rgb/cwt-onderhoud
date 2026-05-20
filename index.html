@@ -4607,12 +4607,79 @@ async function exportEnkelPDF(e, id) {
     doc.text(x.kwitantie, 33, y); y+=6;
   }
 
-  // Footer
-  doc.setFontSize(7.5); doc.setTextColor(148,163,184); doc.setFont('helvetica','normal');
-  doc.text(`CWT S3 Onderhoud  •  Vertrouwelijk  •  ${vandaag}`, pw/2, doc.internal.pageSize.getHeight()-5, {align:'center'});
+  // ── FOTO'S ────────────────────────────────────────────
+  const fotos = x.fotos && x.fotos.length ? x.fotos : (x.foto_base64 ? [{base64:x.foto_base64,naam:x.foto_naam||'foto'}] : []);
+  if (fotos.length) {
+    doc.addPage();
+    const ph = doc.internal.pageSize.getHeight();
+
+    // Pagina header
+    doc.setFillColor(30,58,138);
+    doc.roundedRect(10,8,pw-20,12,2,2,'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    doc.text(`📷 Foto's — Automaat ${x.automaatnr} (${fotos.length} foto${fotos.length!==1?"'s":''})`, pw/2, 16, {align:'center'});
+    doc.setTextColor(30,41,59);
+
+    // Foto's plaatsen in een grid (2 per rij)
+    const fotoB = (pw - 30) / 2;    // breedte per foto
+    const fotoH = fotoB * 0.75;     // hoogte (4:3)
+    const colX = [10, 10 + fotoB + 10];
+    let fy = 26;
+
+    fotos.forEach((foto, i) => {
+      const col = i % 2;
+      const fx = colX[col];
+
+      // Nieuwe pagina nodig?
+      if (fy + fotoH + 16 > ph - 12 && col === 0 && i > 0) {
+        // Footer huidige pagina
+        doc.setFontSize(7); doc.setTextColor(148,163,184);
+        doc.text(`CWT S3 Onderhoud  •  ${vandaag}  •  Foto's`, pw/2, ph-5, {align:'center'});
+        doc.addPage();
+        doc.setFillColor(30,58,138);
+        doc.roundedRect(10,8,pw-20,12,2,2,'F');
+        doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+        doc.text(`📷 Foto's (vervolg) — Automaat ${x.automaatnr}`, pw/2, 16, {align:'center'});
+        doc.setTextColor(30,41,59);
+        fy = 26;
+      }
+
+      try {
+        // Haal het formaat op uit de base64 string
+        const imgType = foto.base64.includes('data:image/png') ? 'PNG' : 'JPEG';
+        const imgData = foto.base64.split(',')[1] || foto.base64;
+        doc.addImage(imgData, imgType, fx, fy, fotoB, fotoH, undefined, 'FAST');
+      } catch(e) {
+        // Als afbeelding niet laadt, toon placeholder
+        doc.setFillColor(248,250,252);
+        doc.rect(fx, fy, fotoB, fotoH, 'F');
+        doc.setFontSize(9); doc.setTextColor(148,163,184);
+        doc.text('Foto kon niet worden geladen', fx + fotoB/2, fy + fotoH/2, {align:'center'});
+      }
+
+      // Bestandsnaam onder de foto
+      doc.setFontSize(7.5); doc.setTextColor(100,116,139); doc.setFont('helvetica','normal');
+      const naam = (foto.naam || `foto ${i+1}`).substring(0, 35);
+      doc.text(`${i+1}. ${naam}`, fx + 1, fy + fotoH + 4);
+
+      // Na 2 foto's, ga naar volgende rij
+      if (col === 1) fy += fotoH + 14;
+    });
+
+    // Als oneven aantal: volgende rij aanpassen
+    if (fotos.length % 2 !== 0) fy += fotoH + 14;
+  }
+
+  // Footer (alle pagina's)
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    doc.setFontSize(7.5); doc.setTextColor(148,163,184); doc.setFont('helvetica','normal');
+    doc.text(`CWT S3 Onderhoud  •  Vertrouwelijk  •  ${vandaag}  •  Pagina ${p} van ${totalPages}`, pw/2, doc.internal.pageSize.getHeight()-5, {align:'center'});
+  }
 
   doc.save(`CWT_${x.automaatnr}_${x.datum}.pdf`);
-  toast('📄 PDF gedownload');
+  toast(`📄 PDF gedownload${fotos.length ? ` — ${fotos.length} foto's bijgevoegd` : ''}`);
 }
 async function openDetail(id){
   const x=dbData.find(r=>r.id===id);if(!x)return;
