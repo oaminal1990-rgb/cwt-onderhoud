@@ -1031,6 +1031,30 @@ select.filter-input option{background:var(--surface2);}
       </div><!-- /sb-body-auditlog -->
     </div>
 
+    <!-- GPS VERIFICATIE -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header" onclick="superToggle('gps')" style="cursor:pointer;user-select:none;">
+        <div class="card-icon" style="background:var(--green-bg);">📍</div>
+        <div><div class="card-title">GPS Verificatie</div><div class="card-subtitle" id="gps-count">Controleer of monteurs daadwerkelijk bij de automaat waren</div></div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;" onclick="event.stopPropagation()">
+          <button class="btn btn-ghost" onclick="buildGpsWidget()" style="font-size:12px;">↻</button>
+          <button class="btn btn-ghost" onclick="exportGpsExcel()" style="font-size:12px;">📊 Excel</button>
+          <button class="btn btn-ghost" onclick="exportGpsPDF()" style="font-size:12px;">📄 PDF</button>
+        </div>
+        <span id="sb-chev-gps" style="margin-left:8px;font-size:18px;color:var(--text3);transition:transform .2s;">▼</span>
+      </div>
+      <div id="sb-body-gps" style="display:none;padding:20px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+          <label style="font-size:13px;color:var(--text3);">Max. afstand:</label>
+          <input type="number" id="gps-drempel" value="300" min="50" max="2000" step="50"
+            style="width:80px;padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;"
+            onchange="localStorage.setItem('cwt_gps_drempel',this.value)"/> meter
+          <button class="btn btn-primary" onclick="buildGpsWidget()" style="font-size:12px;">Toepassen</button>
+        </div>
+        <div id="gps-inhoud"><div class="plan-empty">Klik ↻ om te laden</div></div>
+      </div>
+    </div>
+
     <!-- ARCHIEF -->
     <div class="card" style="margin-bottom:20px;">
       <div class="card-header" onclick="superToggle('archief')" style="cursor:pointer;user-select:none;">
@@ -1842,7 +1866,7 @@ function isZichtbaar(item, cosData, prevData, cosRem, prevRem) {
 async function sbFetch(path,options={}){const res=await fetch(SB_URL+'/rest/v1/'+path,{headers:HEADERS,...options});if(!res.ok){const err=await res.text();throw new Error(err);}return res.status===204?null:res.json();}
 
 // Kolommen voor de lijst/tabel (licht — zonder fotos/logboek)
-const COLS_LIJST = 'id,datum,tijdstip,automaatnr,mobilist,locatie,zone,pct,status,afkeur_reden,totaal_kosten,onderdelen,kwitantie,bijzonderheden,accu_val,cos,prev,cos_remarks,prev_remarks,graffiti_doorgegeven,graffiti_doorgegeven_door,automaat_type,gearchiveerd,beheerder_notitie';
+const COLS_LIJST = 'id,datum,tijdstip,automaatnr,mobilist,locatie,zone,pct,status,afkeur_reden,totaal_kosten,onderdelen,kwitantie,bijzonderheden,accu_val,cos,prev,cos_remarks,prev_remarks,graffiti_doorgegeven,graffiti_doorgegeven_door,automaat_type,gearchiveerd,beheerder_notitie,gps_lat,gps_lng,gps_nauwkeurigheid,gps_afstand,gps_status';
 // Kolommen voor detail panel (alles inclusief fotos en logboek)
 const COLS_DETAIL = '*';
 
@@ -2276,9 +2300,31 @@ async function saveForm(){
   if (!validateStep(1) || !validateStep(2) || !validateStep(3)) return;
   sluitVerzendModal();
   const btn=document.getElementById('btn-save')||document.getElementById('btn-bevestig-verzend');
-  if(btn){btn.disabled=true;btn.textContent='⏳ Verzenden...';}
+  if(btn){btn.disabled=true;btn.textContent='⏳ Locatie bepalen...';}
+
+  // GPS locatie ophalen
+  const gpsData = await haalGpsOp();
+  if(btn) btn.textContent='⏳ Verzenden...';
+
   try{
     const data=collectData();
+    // GPS toevoegen aan formulier
+    if (gpsData) {
+      data.gps_lat = gpsData.lat;
+      data.gps_lng = gpsData.lng;
+      data.gps_nauwkeurigheid = gpsData.nauwkeurigheid;
+      // Bereken afstand tot automaat
+      const automaatInfo = AUTOMATEN.find(a=>a.automaatnr===data.automaatnr);
+      if (automaatInfo && automaatInfo.lat && automaatInfo.lng) {
+        data.gps_afstand = berekenAfstand(gpsData.lat, gpsData.lng, parseFloat(automaatInfo.lat), parseFloat(automaatInfo.lng));
+        const drempel = parseInt(localStorage.getItem('cwt_gps_drempel')||'300');
+        data.gps_status = data.gps_afstand <= drempel ? 'binnen' : 'buiten';
+      } else {
+        data.gps_status = 'geen_automaat_coords';
+      }
+    } else {
+      data.gps_status = 'niet_beschikbaar';
+    }
     const nu = new Date().toISOString();
     if (heropendId) {
       // Herinzenden: update bestaand record
@@ -2640,6 +2686,7 @@ function superToggle(id) {
     if (id === 'sla') buildSlaWidget();
     if (id === 'autostatus') buildAutostatuWidget();
     if (id === 'vergelijk') buildVergelijkWidget();
+    if (id === 'gps') buildGpsWidget();
     if (id === 'tarief') buildTariefWidget();
     if (id === 'exportmont') { const s=document.getElementById('export-monteur-keuze'); if(s&&dynamischeMonteurs) s.innerHTML='<option value="">— Kies monteur —</option>'+dynamischeMonteurs.map(m=>`<option value="${m}">${m}</option>`).join(''); }
   }
@@ -2983,7 +3030,49 @@ function exportWidgetPDF(id){
   doc.save(`CWT_${id}_${new Date().toISOString().split('T')[0]}.pdf`);toast('📄 PDF gedownload');logAudit(userName,userRole,'export',`Widget PDF: ${titels[id]}`);
 }
 
-/* ===== DARK/LIGHT MODE ===== */
+/* ===== GPS LOCATIE VERIFICATIE ===== */
+async function haalGpsOp() {
+  if (!navigator.geolocation) return null;
+  return new Promise(resolve => {
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        nauwkeurigheid: Math.round(pos.coords.accuracy)
+      }),
+      () => resolve(null),
+      { timeout: 8000, maximumAge: 30000, enableHighAccuracy: true }
+    );
+  });
+}
+
+function berekenAfstand(lat1, lng1, lat2, lng2) {
+  // Haversine formule — afstand in meters
+  const R = 6371000;
+  const dLat = (lat2-lat1) * Math.PI/180;
+  const dLng = (lng2-lng1) * Math.PI/180;
+  const a = Math.sin(dLat/2)*Math.sin(dLat/2) +
+    Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*
+    Math.sin(dLng/2)*Math.sin(dLng/2);
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+}
+
+function gpsStatusBadge(x) {
+  if (!x.gps_lat && x.gps_status !== 'buiten') {
+    if (x.gps_status === 'niet_beschikbaar') return `<span style="font-size:11px;color:var(--text3);">📍 GPS niet beschikbaar</span>`;
+    return `<span style="font-size:11px;color:var(--text3);">📍 Geen GPS data</span>`;
+  }
+  if (x.gps_status === 'geen_automaat_coords') return `<span style="font-size:11px;color:var(--text3);">📍 ${x.gps_lat?.toFixed(4)}, ${x.gps_lng?.toFixed(4)}</span>`;
+  const afstand = x.gps_afstand;
+  const binnen = x.gps_status === 'binnen';
+  const afstandTxt = afstand < 1000 ? `${afstand}m` : `${(afstand/1000).toFixed(1)}km`;
+  const kleur = binnen ? 'var(--green)' : 'var(--red)';
+  const icoon = binnen ? '✅' : '❌';
+  return `<span style="font-size:11px;color:${kleur};font-weight:600;">${icoon} ${afstandTxt} van automaat</span>
+    <a href="https://maps.google.com/?q=${x.gps_lat},${x.gps_lng}" target="_blank" style="font-size:11px;color:var(--accent);margin-left:6px;">🗺️ Kaart</a>`;
+}
+
+
 function toggleTheme(){const isLight=document.documentElement.getAttribute('data-theme')==='light';document.documentElement.setAttribute('data-theme',isLight?'':'light');document.getElementById('btn-theme').textContent=isLight?'🌙':'☀️';localStorage.setItem('cwt_theme',isLight?'dark':'light');}
 function laadTheme(){const t=localStorage.getItem('cwt_theme');if(t==='light'){document.documentElement.setAttribute('data-theme','light');const b=document.getElementById('btn-theme');if(b)b.textContent='☀️';}}
 
@@ -3085,6 +3174,112 @@ function tariefBadge(gemeld, zone) {
   return klopt
     ? `<span style="color:var(--green);font-weight:700;">✅ Klopt (verwacht €${verwacht.toFixed(2)})</span>`
     : `<span style="color:var(--red);font-weight:700;">❌ Afwijking! Verwacht €${verwacht.toFixed(2)}</span>`;
+}
+
+/* ===== GPS WIDGET ===== */
+async function buildGpsWidget() {
+  const el = document.getElementById('gps-inhoud');
+  const cnt = document.getElementById('gps-count');
+  if (!el) return;
+  el.innerHTML = `<div style="text-align:center;padding:20px;"><span class="spinner"></span></div>`;
+  await ensureDbData();
+  const drempel = parseInt(document.getElementById('gps-drempel')?.value || localStorage.getItem('cwt_gps_drempel') || '300');
+  localStorage.setItem('cwt_gps_drempel', drempel);
+  const metGps = (dbData||[]).filter(x => x.gps_lat || x.gps_status);
+  const buiten = metGps.filter(x => x.gps_status === 'buiten');
+  const binnen = metGps.filter(x => x.gps_status === 'binnen');
+  const geenGps = (dbData||[]).filter(x => !x.gps_lat && !x.gps_status);
+  if (cnt) cnt.textContent = `${metGps.length} formulieren met GPS · ${buiten.length} ❌ buiten bereik`;
+  if (!metGps.length) { el.innerHTML = `<div class="plan-empty">Nog geen GPS data — wordt gevuld zodra monteurs formulieren insturen</div>`; return; }
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;">
+      <div class="kpi"><div class="kpi-val green">${binnen.length}</div><div class="kpi-label">✅ Binnen bereik</div></div>
+      <div class="kpi"><div class="kpi-val red">${buiten.length}</div><div class="kpi-label">❌ Buiten bereik</div></div>
+      <div class="kpi"><div class="kpi-val" style="color:var(--text3);">${geenGps.length}</div><div class="kpi-label">📵 Geen GPS</div></div>
+      <div class="kpi"><div class="kpi-val amber">${metGps.length}</div><div class="kpi-label">📍 Totaal gemeten</div></div>
+    </div>
+    ${buiten.length > 0 ? `<div style="background:var(--red-bg);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:14px;margin-bottom:16px;">
+      <div style="font-weight:700;color:var(--red);margin-bottom:10px;">⚠️ Buiten bereik (${drempel}m) — ${buiten.length} formulier${buiten.length!==1?'en':''}</div>
+      ${buiten.sort((a,b)=>(b.gps_afstand||0)-(a.gps_afstand||0)).map(x=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(239,68,68,.2);cursor:pointer;" onclick="openDetail(${x.id})">
+        <div style="flex:1;"><span style="font-weight:700;color:var(--accent);">${x.automaatnr}</span><span style="font-size:11px;color:var(--text3);"> · ${x.datum} · ${x.mobilist||'?'}</span></div>
+        <span style="color:var(--red);font-weight:700;">${x.gps_afstand>=1000?(x.gps_afstand/1000).toFixed(1)+'km':x.gps_afstand+'m'} van automaat</span>
+        <a href="https://maps.google.com/?q=${x.gps_lat},${x.gps_lng}" target="_blank" onclick="event.stopPropagation()" style="color:var(--accent);font-size:12px;">🗺️</a>
+      </div>`).join('')}
+    </div>` : `<div style="background:var(--green-bg);border:1px solid rgba(34,197,94,.3);border-radius:10px;padding:12px;margin-bottom:16px;text-align:center;font-weight:600;color:var(--green);">✅ Alle gemeten locaties zijn binnen ${drempel}m bereik</div>`}
+    <div style="overflow-x:auto;border-radius:10px;border:1px solid var(--border);">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead><tr style="background:var(--surface2);color:var(--text3);font-size:11px;font-weight:600;">
+          <th style="padding:9px 12px;text-align:left;">AUTOMAAT</th><th style="padding:9px 8px;text-align:left;">MONTEUR</th>
+          <th style="padding:9px 8px;text-align:center;">DATUM</th><th style="padding:9px 8px;text-align:center;">AFSTAND</th>
+          <th style="padding:9px 8px;text-align:center;">STATUS</th><th style="padding:9px 8px;text-align:center;">KAART</th>
+        </tr></thead>
+        <tbody>${metGps.sort((a,b)=>String(b.datum).localeCompare(String(a.datum))).slice(0,100).map(x=>{
+          const af=x.gps_afstand; const buit=x.gps_status==='buiten';
+          return `<tr style="border-top:1px solid var(--border);${buit?'background:var(--red-bg);':''}cursor:pointer;" onclick="openDetail(${x.id})">
+            <td style="padding:8px 12px;font-weight:700;color:var(--accent);">${x.automaatnr}</td>
+            <td style="padding:8px 8px;color:var(--text2);">${x.mobilist||'?'}</td>
+            <td style="padding:8px 8px;text-align:center;color:var(--text3);">${x.datum||'—'}</td>
+            <td style="padding:8px 8px;text-align:center;font-weight:700;color:${buit?'var(--red)':'var(--green)'};">${af!=null?(af>=1000?(af/1000).toFixed(1)+'km':af+'m'):'—'}</td>
+            <td style="padding:8px 8px;text-align:center;">${x.gps_status==='binnen'?'✅':x.gps_status==='buiten'?'❌':'❓'}</td>
+            <td style="padding:8px 8px;text-align:center;">${x.gps_lat?`<a href="https://maps.google.com/?q=${x.gps_lat},${x.gps_lng}" target="_blank" onclick="event.stopPropagation()" style="color:var(--accent);">🗺️</a>`:'—'}</td>
+          </tr>`;}).join('')}</tbody>
+      </table>
+    </div>`;
+}
+
+function exportGpsExcel() {
+  if (!dbData) { toast('⚠️ Laad eerst data'); return; }
+  const data = dbData.filter(x => x.gps_lat || x.gps_status);
+  if (!data.length) { toast('⚠️ Geen GPS data'); return; }
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['CWT S3 — GPS Verificatie'],['Gegenereerd: '+new Date().toLocaleDateString('nl-NL')],[],
+    ['Datum','Automaat','Locatie','Monteur','GPS Lat','GPS Lng','Nauwkeurigheid','Afstand','Status','Google Maps'],
+    ...data.sort((a,b)=>String(b.datum).localeCompare(String(a.datum))).map(x=>[
+      x.datum||'',x.automaatnr||'',x.locatie||'',x.mobilist||'',
+      x.gps_lat||'',x.gps_lng||'',
+      x.gps_nauwkeurigheid?x.gps_nauwkeurigheid+'m':'',
+      x.gps_afstand!=null?x.gps_afstand+'m':'',
+      x.gps_status||'',
+      x.gps_lat?`https://maps.google.com/?q=${x.gps_lat},${x.gps_lng}`:''
+    ])
+  ]);
+  ws['!cols']=[12,14,35,14,12,12,14,12,12,40].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb,ws,'GPS');
+  XLSX.writeFile(wb,`CWT_GPS_${new Date().toISOString().split('T')[0]}.xlsx`);
+  toast('📊 GPS Excel gedownload');
+}
+
+async function exportGpsPDF() {
+  await ensureDbData();
+  const data=(dbData||[]).filter(x=>x.gps_lat||x.gps_status);
+  if(!data.length){toast('⚠️ Geen GPS data');return;}
+  toast('⏳ PDF...');
+  const drempel=parseInt(localStorage.getItem('cwt_gps_drempel')||'300');
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const pw=doc.internal.pageSize.getWidth();
+  const buiten=data.filter(x=>x.gps_status==='buiten').length;
+  doc.setFillColor(30,58,138);doc.roundedRect(10,8,pw-20,14,2,2,'F');
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(13);
+  doc.text(`CWT S3 — GPS Verificatie (drempel: ${drempel}m · ${buiten} afwijkingen)`,pw/2,17,{align:'center'});
+  doc.autoTable({
+    head:[['Datum','Automaat','Locatie','Monteur','Afstand','Status']],
+    body:data.sort((a,b)=>String(b.datum).localeCompare(String(a.datum))).map(x=>[
+      x.datum||'',x.automaatnr||'',(x.locatie||'').substring(0,30),x.mobilist||'',
+      x.gps_afstand!=null?(x.gps_afstand>=1000?(x.gps_afstand/1000).toFixed(1)+'km':x.gps_afstand+'m'):'—',
+      x.gps_status==='binnen'?'✅ Binnen':x.gps_status==='buiten'?'❌ Buiten':'❓'
+    ]),
+    startY:26,margin:{left:10,right:10},styles:{fontSize:8.5,cellPadding:2.5},
+    headStyles:{fillColor:[30,58,138],textColor:255,fontStyle:'bold'},
+    alternateRowStyles:{fillColor:[248,250,252]},
+    columnStyles:{0:{cellWidth:22,halign:'center'},1:{cellWidth:18,fontStyle:'bold',textColor:[30,58,138]},2:{cellWidth:55},4:{cellWidth:22,halign:'center'},5:{cellWidth:20,halign:'center'}},
+    didParseCell(d){if(d.column.index===5&&d.section==='body'){d.cell.styles.textColor=d.cell.raw.includes('✅')?[22,163,74]:d.cell.raw.includes('❌')?[220,38,38]:[148,163,184];d.cell.styles.fontStyle='bold';}}
+  });
+  doc.setFontSize(7);doc.setTextColor(148,163,184);
+  doc.text(`CWT S3 Onderhoud · ${new Date().toLocaleDateString('nl-NL')}`,pw/2,doc.internal.pageSize.getHeight()-4,{align:'center'});
+  doc.save(`CWT_GPS_${new Date().toISOString().split('T')[0]}.pdf`);
+  toast('📄 GPS PDF gedownload');
 }
 
 /* ===== TARIEF WIDGET ===== */
@@ -4698,7 +4893,7 @@ async function openDetail(id){
   const cls=x.pct===100?'badge-green':x.pct>=70?'badge-amber':'badge-red';
   const xStatus=x.status||'ingediend';
 
-  let html=`<div class="detail-meta"><div class="detail-meta-grid"><div><div class="dlabel">Datum</div><div class="dval">${x.datum||'—'}${x.tijdstip?' om '+x.tijdstip:''}</div></div><div><div class="dlabel">Automaatnr.</div><div class="dval">${x.automaatnr||'—'}</div></div><div><div class="dlabel">Mobilist</div><div class="dval">${x.mobilist||'—'}</div></div><div><div class="dlabel">Locatie</div><div class="dval">${x.locatie||'—'}</div></div><div><div class="dlabel">Zone</div><div class="dval">${x.zone||'—'}</div></div></div><div style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><span class="badge ${cls}" style="font-size:13px;padding:4px 12px;">${x.pct||0}% volledig</span>${statusBadge(xStatus)}<span style="font-size:13px;color:var(--text3);">${x.totaal_done||0} van ${x.totaal||25} punten</span>${x.accu_val?`<span style="font-size:13px;color:var(--text3);">Accu: ${x.accu_val} V</span>`:''}</div></div>`;
+  let html=`<div class="detail-meta"><div class="detail-meta-grid"><div><div class="dlabel">Datum</div><div class="dval">${x.datum||'—'}${x.tijdstip?' om '+x.tijdstip:''}</div></div><div><div class="dlabel">Automaatnr.</div><div class="dval">${x.automaatnr||'—'}</div></div><div><div class="dlabel">Mobilist</div><div class="dval">${x.mobilist||'—'}</div></div><div><div class="dlabel">Locatie</div><div class="dval">${x.locatie||'—'}</div></div><div><div class="dlabel">Zone</div><div class="dval">${x.zone||'—'}</div></div></div><div style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><span class="badge ${cls}" style="font-size:13px;padding:4px 12px;">${x.pct||0}% volledig</span>${statusBadge(xStatus)}<span style="font-size:13px;color:var(--text3);">${x.totaal_done||0} van ${x.totaal||25} punten</span>${x.accu_val?`<span style="font-size:13px;color:var(--text3);">Accu: ${x.accu_val} V</span>`:''}${userRole==='superbeheerder'?`<div>${gpsStatusBadge(x)}</div>`:''}</div></div>`;
 
   // Afkeur reden tonen als afgekeurd
   if(xStatus==='afgekeurd'&&x.afkeur_reden){
