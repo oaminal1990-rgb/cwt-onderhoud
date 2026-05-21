@@ -1866,7 +1866,7 @@ function isZichtbaar(item, cosData, prevData, cosRem, prevRem) {
 async function sbFetch(path,options={}){const res=await fetch(SB_URL+'/rest/v1/'+path,{headers:HEADERS,...options});if(!res.ok){const err=await res.text();throw new Error(err);}return res.status===204?null:res.json();}
 
 // Kolommen voor de lijst/tabel (licht — zonder fotos/logboek)
-const COLS_LIJST = 'id,datum,tijdstip,automaatnr,mobilist,locatie,zone,pct,status,afkeur_reden,totaal_kosten,onderdelen,kwitantie,bijzonderheden,accu_val,cos,prev,cos_remarks,prev_remarks,graffiti_doorgegeven,graffiti_doorgegeven_door,automaat_type,gearchiveerd,beheerder_notitie,gps_lat,gps_lng,gps_nauwkeurigheid,gps_afstand,gps_status';
+const COLS_LIJST = 'id,datum,tijdstip,automaatnr,mobilist,locatie,zone,pct,status,afkeur_reden,totaal_kosten,onderdelen,kwitantie,bijzonderheden,accu_val,cos,prev,cos_remarks,prev_remarks,graffiti_doorgegeven,graffiti_doorgegeven_door,automaat_type,gearchiveerd,beheerder_notitie,gps_lat,gps_lng,gps_nauwkeurigheid,gps_afstand,gps_status,created_at';
 // Kolommen voor detail panel (alles inclusief fotos en logboek)
 const COLS_DETAIL = '*';
 
@@ -1878,7 +1878,7 @@ const CACHE_TTL = 3 * 60 * 1000; // 3 minuten
 async function sbGet(f='') {
   // Gebruik cache als minder dan 3 minuten oud en geen extra filter
   if (!f && _dbCache && Date.now() - _dbCacheTime < CACHE_TTL) return _dbCache;
-  const data = await sbFetch(`onderhoud?select=${COLS_LIJST}&order=datum.desc,created_at.desc&gearchiveerd=eq.false&${f}`);
+  const data = await sbFetch(`onderhoud?select=${COLS_LIJST}&order=created_at.desc,datum.desc&gearchiveerd=eq.false&${f}`);
   if (!f) { _dbCache = data; _dbCacheTime = Date.now(); }
   return data;
 }
@@ -2295,7 +2295,7 @@ function collectData(){const total=cosItems.length+prevItems.length;const done=O
 // Auto-detecteer Solar via zonnepaneel checkpunt (cosItems index 6)
 const isSolar = state.cos['cos_solar'] === true || state.cos[6] === true;
 const automaatType = isSolar ? 'Solar' : null;
-return{datum:document.getElementById('datum').value||new Date().toISOString().split('T')[0],tijdstip:document.getElementById('tijdstip').value||'',automaatnr:document.getElementById('automaatnr').value||'—',mobilist:document.getElementById('mobilist').value||'—',locatie:document.getElementById('locatie').value||'—',zone:document.getElementById('zone').value||'—',kwitantie:document.getElementById('kwitantie').value||'',pct:Math.round(done/total*100),totaal_done:done,totaal:total,accu_val:state.accuVal||'',bijzonderheden:document.getElementById('bijzonderheden').value||'',fotos:state.fotos||[],onderdelen:onderdelenLijst,totaal_kosten:totaalKosten,cos:state.cos,cos_remarks:state.cosRemarks,prev:state.prev,prev_remarks:state.prevRemarks,automaat_type:automaatType};}
+return{datum:document.getElementById('datum').value||lokaleDatum(),tijdstip:document.getElementById('tijdstip').value||'',automaatnr:document.getElementById('automaatnr').value||'—',mobilist:document.getElementById('mobilist').value||'—',locatie:document.getElementById('locatie').value||'—',zone:document.getElementById('zone').value||'—',kwitantie:document.getElementById('kwitantie').value||'',pct:Math.round(done/total*100),totaal_done:done,totaal:total,accu_val:state.accuVal||'',bijzonderheden:document.getElementById('bijzonderheden').value||'',fotos:state.fotos||[],onderdelen:onderdelenLijst,totaal_kosten:totaalKosten,cos:state.cos,cos_remarks:state.cosRemarks,prev:state.prev,prev_remarks:state.prevRemarks,automaat_type:automaatType};}
 async function saveForm(){
   if (!validateStep(1) || !validateStep(2) || !validateStep(3)) return;
   sluitVerzendModal();
@@ -2430,7 +2430,7 @@ function sluitVerzendModal() {
   document.getElementById('verzend-modal').style.display = 'none';
 }
 
-function newForm(){privacyGetoond=false;state={cos:{},cosRemarks:{},prev:{},prevRemarks:{},accuVal:'',fotos:[]};onderdelenGeselecteerd={};['automaatnr','datum','tijdstip','mobilist','locatie','zone','kwitantie','bijzonderheden'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});document.getElementById('datum').value=new Date().toISOString().split('T')[0];document.getElementById('tijdstip').value=new Date().toTimeString().slice(0,5);renderFotoGallery();if(userName&&userRole==='medewerker'){document.getElementById('mobilist').value=userName;}currentStep=1;document.querySelectorAll('.step').forEach((s,i)=>{s.classList.remove('active','done');s.querySelector('.step-num').textContent=i+1;});switchTab('form');renderStep();}
+function newForm(){privacyGetoond=false;state={cos:{},cosRemarks:{},prev:{},prevRemarks:{},accuVal:'',fotos:[]};onderdelenGeselecteerd={};['automaatnr','datum','tijdstip','mobilist','locatie','zone','kwitantie','bijzonderheden'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});document.getElementById('datum').value=lokaleDatum();document.getElementById('tijdstip').value=lokaleTijd();renderFotoGallery();if(userName&&userRole==='medewerker'){document.getElementById('mobilist').value=userName;}currentStep=1;document.querySelectorAll('.step').forEach((s,i)=>{s.classList.remove('active','done');s.querySelector('.step-num').textContent=i+1;});switchTab('form');renderStep();}
 function exportJSON(){const data=collectData();const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='CWT_'+data.automaatnr+'_'+data.datum+'.json';a.click();toast('⬇ Geëxporteerd');}
 function switchTab(tab) {
   if (tab === 'dash' && !['beheerder','superbeheerder'].includes(userRole)) return;
@@ -3075,6 +3075,20 @@ function gpsStatusBadge(x) {
 
 function toggleTheme(){const isLight=document.documentElement.getAttribute('data-theme')==='light';document.documentElement.setAttribute('data-theme',isLight?'':'light');document.getElementById('btn-theme').textContent=isLight?'🌙':'☀️';localStorage.setItem('cwt_theme',isLight?'dark':'light');}
 function laadTheme(){const t=localStorage.getItem('cwt_theme');if(t==='light'){document.documentElement.setAttribute('data-theme','light');const b=document.getElementById('btn-theme');if(b)b.textContent='☀️';}}
+
+
+/* ===== LOKALE DATUM/TIJD (tijdzone-correct) ===== */
+function lokaleDatum() {
+  const d = new Date();
+  return d.getFullYear() + '-' +
+    String(d.getMonth()+1).padStart(2,'0') + '-' +
+    String(d.getDate()).padStart(2,'0');
+}
+function lokaleTijd() {
+  const d = new Date();
+  return String(d.getHours()).padStart(2,'0') + ':' +
+    String(d.getMinutes()).padStart(2,'0');
+}
 
 /* ===== OFFLINE DETECTIE ===== */
 function updateOnlineStatus(){const b=document.getElementById('offline-banner');if(b)b.style.display=navigator.onLine?'none':'flex';if(!navigator.onLine)toast('📶 Geen internetverbinding');else syncOfflineForms();}
@@ -4180,7 +4194,7 @@ function filterOpenstaande() {
                   (x.mobilist||'').toLowerCase().includes(zoek) ||
                   (x.locatie||'').toLowerCase().includes(zoek);
     return mStatus && mZoek;
-  }).sort((a,b)=>String(b.datum).localeCompare(String(a.datum)));
+  }).sort((a,b)=>(b.created_at||b.datum||'').localeCompare(a.created_at||a.datum||''));
 
   if (!gefilterd.length) {
     lijst.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text3);font-size:14px;">✅ Geen openstaande formulieren gevonden</div>`;
@@ -4198,6 +4212,7 @@ function filterOpenstaande() {
           <span style="font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:600;">${x.automaatnr||'—'}</span>
           <span style="font-size:11px;color:var(--text3);">${x.mobilist||'—'}</span>
           <span style="font-size:11px;color:var(--text3);">${x.datum||'—'}</span>
+          ${x.created_at&&x.created_at.slice(0,10)!==x.datum?`<span style="font-size:10px;color:var(--amber);padding:1px 5px;background:var(--amber-bg);border-radius:4px;" title="Ingezonden op ${x.created_at.slice(0,10)}">📅 ingezonden ${x.created_at.slice(0,10)}</span>`:''}
         </div>
         <div style="font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${x.locatie||'—'}</div>
         ${s==='afgekeurd'&&x.afkeur_reden?`<div style="font-size:11px;color:var(--red);margin-top:2px;">Reden: ${x.afkeur_reden}</div>`:''}
