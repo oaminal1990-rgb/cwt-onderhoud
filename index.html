@@ -5308,12 +5308,21 @@ function planStatusBadge(status) {
 
 function planItemHTML(p, toonVerwijder=false) {
   const kanStarten = userRole==='medewerker' && (p.status||'gepland')==='gepland';
-  return `<div class="plan-item">
+  const isAfgerond = (p.status||'gepland')==='afgerond';
+  // Check of er een formulier is voor deze afgeronde taak
+  const heeftFormulier = !isAfgerond || (dbData||[]).some(x =>
+    x.automaatnr === p.automaatnr &&
+    x.datum === p.datum &&
+    x.mobilist?.toLowerCase() === p.monteur?.toLowerCase()
+  );
+  return `<div class="plan-item" style="${isAfgerond && !heeftFormulier ? 'border-left:3px solid var(--amber);' : ''}">
     <div class="plan-item-info">
       <div class="plan-item-top">
         <span class="plan-automaat">${p.automaatnr||'—'}</span>
         ${planDatumBadge(p.datum)}
         ${planStatusBadge(p.status)}
+        ${isAfgerond && !heeftFormulier ? `<span style="font-size:11px;background:var(--amber-bg);color:var(--amber);border:1px solid rgba(245,158,11,.3);padding:2px 7px;border-radius:5px;font-weight:600;">⚠️ Geen formulier</span>` : ''}
+        ${isAfgerond && heeftFormulier ? `<span style="font-size:11px;background:var(--green-bg);color:var(--green);border:1px solid rgba(34,197,94,.3);padding:2px 7px;border-radius:5px;">📋 Formulier aanwezig</span>` : ''}
       </div>
       <div class="plan-locatie">${p.locatie||'—'} ${p.zone?'· Zone '+p.zone:''}</div>
       ${p.notitie?`<div class="plan-notitie">💬 ${p.notitie}</div>`:''}
@@ -5641,12 +5650,35 @@ async function deletePlanTaak(id) {
 }
 
 async function markeerAfgerond(id) {
+  const taak = planData.find(p=>p.id===id);
+  if (!taak) return;
+
+  // Check of er al een formulier is voor deze automaat op deze datum
+  const heeftFormulier = (dbData||[]).some(x =>
+    x.automaatnr === taak.automaatnr &&
+    x.datum === taak.datum &&
+    x.mobilist?.toLowerCase() === taak.monteur?.toLowerCase()
+  );
+
+  if (!heeftFormulier) {
+    const doorgaan = confirm(
+      `⚠️ Waarschuwing!\n\n` +
+      `Er is geen ingediend formulier gevonden voor:\n` +
+      `Automaat ${taak.automaatnr} · ${taak.monteur} · ${taak.datum}\n\n` +
+      `Weet je zeker dat je deze taak als afgerond wilt markeren zonder formulier?`
+    );
+    if (!doorgaan) return;
+  }
+
   try {
     await sbPlanUpdate(id, {status:'afgerond'});
     const idx = planData.findIndex(p=>p.id===id);
     if (idx>-1) planData[idx].status='afgerond';
     renderPlanTabel();
-    toast('✅ Taak afgerond');
+    logAudit(userName, userRole, 'planning afgerond',
+      `Taak #${id} (automaat ${taak.automaatnr} · ${taak.monteur}) handmatig afgerond${heeftFormulier?' (formulier aanwezig)':' ⚠️ GEEN FORMULIER'}`
+    );
+    toast(heeftFormulier ? '✅ Taak afgerond' : '⚠️ Taak afgerond — let op: geen formulier gevonden');
   } catch(e) { toast('❌ Bijwerken mislukt'); }
 }
 
