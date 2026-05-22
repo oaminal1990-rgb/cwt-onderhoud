@@ -7776,10 +7776,32 @@ function formatDatum(iso) {
 
 // ID van formulier dat wordt aangepast — gedeclareerd bovenaan
 
-function heropendFormulier(id) {
+async function heropendFormulier(id) {
   const x = mijnData.find(r => r.id === id);
   if (!x) return;
+  toast('⏳ Formulier laden en foto\'s optimaliseren...');
   heropendId = id;
+
+  // Comprimeer bestaande foto's voor ze in state komen
+  const oudeFootos = x.fotos || [];
+  const gecomprimeerdeFootos = [];
+  for (const f of oudeFootos) {
+    if (f.base64 && f.base64.startsWith('data:')) {
+      try {
+        // Maak een blob van de base64 en comprimeer
+        const res = await fetch(f.base64);
+        const blob = await res.blob();
+        const file = new File([blob], f.naam || 'foto.jpg', { type: blob.type });
+        const gecomp = await comprimeerFoto(file);
+        gecomprimeerdeFootos.push({ base64: gecomp || f.base64, naam: f.naam });
+      } catch(_) {
+        gecomprimeerdeFootos.push(f); // Fallback origineel
+      }
+    } else {
+      gecomprimeerdeFootos.push(f);
+    }
+  }
+
   // Herstel state vanuit opgeslagen data
   state = {
     cos: x.cos || {},
@@ -7787,12 +7809,13 @@ function heropendFormulier(id) {
     prev: x.prev || {},
     prevRemarks: x.prev_remarks || {},
     accuVal: x.accu_val || '',
-    fotos: x.fotos || []
+    fotos: gecomprimeerdeFootos
   };
+
   // Vul formulier in
   const fields = {automaatnr:x.automaatnr,datum:x.datum,tijdstip:x.tijdstip,mobilist:x.mobilist,locatie:x.locatie,zone:x.zone,kwitantie:x.kwitantie,bijzonderheden:x.bijzonderheden};
   Object.entries(fields).forEach(([id,val]) => { const el=document.getElementById(id); if(el) el.value=val||''; });
-  // Herstel foto gallerij
+
   renderFotoGallery();
   currentStep = 1;
   document.querySelectorAll('.step').forEach((s,i)=>{ s.classList.remove('active','done'); s.querySelector('.step-num').textContent=i+1; });
@@ -7802,8 +7825,8 @@ function heropendFormulier(id) {
 }
 
 /* ===== INIT ===== */
-document.getElementById('datum').value = new Date().toISOString().split('T')[0];
-document.getElementById('tijdstip').value = new Date().toTimeString().slice(0,5);
+document.getElementById('datum').value = lokaleDatum();
+document.getElementById('tijdstip').value = lokaleTijd();
 document.getElementById('bottom-bar').style.display = 'flex';
 
 // Check of login geblokkeerd is bij pagina laden
