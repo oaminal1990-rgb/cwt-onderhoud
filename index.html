@@ -442,7 +442,7 @@ select.filter-input option{background:var(--surface2);}
         <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:16px;color:var(--text3);pointer-events:none;">🔍</span>
         <input id="login-zoek" class="login-input" placeholder="Zoek op naam..." oninput="filterLoginNamen()" onkeydown="loginZoekEnter(event)" style="padding-left:42px;margin-bottom:0;" autocomplete="off"/>
       </div>
-      <div id="login-namen" style="display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto;padding-right:2px;"></div>
+      <div id="login-namen" style="display:flex;flex-direction:column;gap:8px;max-height:420px;overflow-y:auto;padding-right:2px;"></div>
       <div id="login-geen-resultaat" style="display:none;text-align:center;padding:24px;color:var(--text3);font-size:14px;">Geen monteur gevonden</div>
       <div class="login-err" id="login-err2"></div>
     </div>
@@ -1029,6 +1029,60 @@ select.filter-input option{background:var(--surface2);}
       </div>
       <div id="audit-lijst"></div>
       </div><!-- /sb-body-auditlog -->
+    </div>
+
+    <!-- BULK PDF EXPORT -->
+    <div class="card" style="margin-bottom:20px;border:1px solid var(--accent);background:linear-gradient(135deg,var(--surface),var(--accent-glow));">
+      <div class="card-header" onclick="superToggle('bulkpdf')" style="cursor:pointer;user-select:none;">
+        <div class="card-icon" style="background:var(--accent-glow);">📦</div>
+        <div><div class="card-title">Bulk PDF export — alle formulieren</div><div class="card-subtitle">Download meerdere formulieren in één PDF inclusief foto's</div></div>
+        <span id="sb-chev-bulkpdf" style="margin-left:auto;font-size:18px;color:var(--text3);transition:transform .2s;">▼</span>
+      </div>
+      <div id="sb-body-bulkpdf" style="display:none;padding:20px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+          <div>
+            <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:4px;">Datum van</label>
+            <input type="date" id="bulk-datum-van" class="filter-input" style="width:100%;"/>
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:4px;">Datum tot</label>
+            <input type="date" id="bulk-datum-tot" class="filter-input" style="width:100%;"/>
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:4px;">Monteur</label>
+            <select id="bulk-monteur" class="filter-input" style="width:100%;">
+              <option value="">Alle monteurs</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:4px;">Status</label>
+            <select id="bulk-status" class="filter-input" style="width:100%;">
+              <option value="">Alle statussen</option>
+              <option value="ingediend">Ingediend</option>
+              <option value="goedgekeurd">Goedgekeurd</option>
+              <option value="afgekeurd">Afgekeurd</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+            <input type="checkbox" id="bulk-met-fotos" checked style="width:16px;height:16px;"/>
+            Foto's meenemen in PDF
+          </label>
+          <span style="font-size:11px;color:var(--text3);">(vergroot bestandsgrootte aanzienlijk)</span>
+        </div>
+        <div id="bulk-preview" style="font-size:13px;color:var(--text3);margin-bottom:12px;"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-ghost" onclick="bulkPdfPreview()" style="font-size:13px;">🔍 Voorvertoning</button>
+          <button class="btn btn-primary" onclick="exportBulkPDF()" style="font-size:13px;">📄 Genereer PDF</button>
+        </div>
+        <div id="bulk-voortgang" style="display:none;margin-top:14px;">
+          <div style="font-size:13px;color:var(--text2);margin-bottom:6px;" id="bulk-voortgang-tekst">Bezig...</div>
+          <div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;">
+            <div id="bulk-voortgang-bar" style="height:100%;background:var(--accent);border-radius:3px;transition:width .3s;width:0%;"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- GPS VERIFICATIE -->
@@ -1873,7 +1927,7 @@ const COLS_DETAIL = '*';
 // Cache
 let _dbCache = null;
 let _dbCacheTime = 0;
-const CACHE_TTL = 3 * 60 * 1000; // 3 minuten
+const CACHE_TTL = 10 * 60 * 1000; // 10 minuten
 
 async function sbGet(f='') {
   // Gebruik cache als minder dan 3 minuten oud en geen extra filter
@@ -2300,7 +2354,7 @@ async function saveForm(){
   if (!validateStep(1) || !validateStep(2) || !validateStep(3)) return;
   sluitVerzendModal();
   const btn=document.getElementById('btn-save')||document.getElementById('btn-bevestig-verzend');
-  if(btn){btn.disabled=true;btn.textContent='⏳ Locatie bepalen...';}
+  if(btn){btn.disabled=true;btn.textContent='⏳ Verzenden...';}
 
   // GPS locatie ophalen
   const gpsData = await haalGpsOp();
@@ -2313,14 +2367,22 @@ async function saveForm(){
       data.gps_lat = gpsData.lat;
       data.gps_lng = gpsData.lng;
       data.gps_nauwkeurigheid = gpsData.nauwkeurigheid;
-      // Bereken afstand tot automaat
-      const automaatInfo = AUTOMATEN.find(a=>a.automaatnr===data.automaatnr);
-      if (automaatInfo && automaatInfo.lat && automaatInfo.lng) {
-        data.gps_afstand = berekenAfstand(gpsData.lat, gpsData.lng, parseFloat(automaatInfo.lat), parseFloat(automaatInfo.lng));
+      // Haal verwachte locatie op uit DB (zelf-lerend systeem)
+      const automaatCoords = await haalAutomaatCoords(data.automaatnr);
+      if (automaatCoords) {
+        data.gps_afstand = berekenAfstand(gpsData.lat, gpsData.lng, parseFloat(automaatCoords.gps_lat), parseFloat(automaatCoords.gps_lng));
         const drempel = parseInt(localStorage.getItem('cwt_gps_drempel')||'300');
         data.gps_status = data.gps_afstand <= drempel ? 'binnen' : 'buiten';
       } else {
+        // Geen referentie bekend — sla deze op als eerste meting
         data.gps_status = 'geen_automaat_coords';
+        if (gpsData.nauwkeurigheid <= 100) {
+          await slaAutomaatLocatieOp(data.automaatnr, gpsData.lat, gpsData.lng, gpsData.nauwkeurigheid);
+        }
+      }
+      // Altijd locatie bijwerken als nauwkeurig genoeg
+      if (gpsData.nauwkeurigheid <= 50 && automaatCoords && automaatCoords.aantal_metingen < 10) {
+        await slaAutomaatLocatieOp(data.automaatnr, gpsData.lat, gpsData.lng, gpsData.nauwkeurigheid);
       }
     } else {
       data.gps_status = 'niet_beschikbaar';
@@ -2686,6 +2748,7 @@ function superToggle(id) {
     if (id === 'sla') buildSlaWidget();
     if (id === 'autostatus') buildAutostatuWidget();
     if (id === 'vergelijk') buildVergelijkWidget();
+    if (id === 'bulkpdf') bulkPdfInit();
     if (id === 'gps') buildGpsWidget();
     if (id === 'tarief') buildTariefWidget();
     if (id === 'exportmont') { const s=document.getElementById('export-monteur-keuze'); if(s&&dynamischeMonteurs) s.innerHTML='<option value="">— Kies monteur —</option>'+dynamischeMonteurs.map(m=>`<option value="${m}">${m}</option>`).join(''); }
@@ -3040,14 +3103,13 @@ async function haalGpsOp() {
         lng: pos.coords.longitude,
         nauwkeurigheid: Math.round(pos.coords.accuracy)
       }),
-      () => resolve(null),
+      () => resolve(null), // Stil falen — monteur merkt niets
       { timeout: 8000, maximumAge: 30000, enableHighAccuracy: true }
     );
   });
 }
 
 function berekenAfstand(lat1, lng1, lat2, lng2) {
-  // Haversine formule — afstand in meters
   const R = 6371000;
   const dLat = (lat2-lat1) * Math.PI/180;
   const dLng = (lng2-lng1) * Math.PI/180;
@@ -3057,12 +3119,35 @@ function berekenAfstand(lat1, lng1, lat2, lng2) {
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
 }
 
+async function haalAutomaatCoords(automaatnr) {
+  try {
+    const res = await sbFetch(`automaat_locaties?automaatnr=eq.${encodeURIComponent(automaatnr)}&select=gps_lat,gps_lng,nauwkeurigheid,aantal_metingen`);
+    if (Array.isArray(res) && res.length > 0) return res[0];
+  } catch(_) {}
+  return null;
+}
+
+async function slaAutomaatLocatieOp(automaatnr, lat, lng, nauwkeurigheid) {
+  try {
+    await sbFetch('rpc/sla_automaat_locatie_op', {
+      method: 'POST',
+      body: JSON.stringify({
+        p_automaatnr: automaatnr,
+        p_lat: lat,
+        p_lng: lng,
+        p_nauwkeurigheid: nauwkeurigheid || null
+      })
+    });
+  } catch(_) {}
+}
+
 function gpsStatusBadge(x) {
   if (!x.gps_lat && x.gps_status !== 'buiten') {
-    if (x.gps_status === 'niet_beschikbaar') return `<span style="font-size:11px;color:var(--text3);">📍 GPS niet beschikbaar</span>`;
+    if (x.gps_status === 'niet_beschikbaar') return `<span style="font-size:11px;color:var(--amber);background:var(--amber-bg);padding:2px 7px;border-radius:4px;">📍 GPS geweigerd</span>`;
+    if (x.gps_status === 'geen_automaat_coords') return `<span style="font-size:11px;color:var(--text3);">📍 GPS opgeslagen (locatie wordt opgebouwd)</span>`;
     return `<span style="font-size:11px;color:var(--text3);">📍 Geen GPS data</span>`;
   }
-  if (x.gps_status === 'geen_automaat_coords') return `<span style="font-size:11px;color:var(--text3);">📍 ${x.gps_lat?.toFixed(4)}, ${x.gps_lng?.toFixed(4)}</span>`;
+  if (x.gps_status === 'geen_automaat_coords') return `<span style="font-size:11px;color:var(--accent);">📍 ${x.gps_lat?.toFixed(4)}, ${x.gps_lng?.toFixed(4)} — referentie wordt opgebouwd</span>`;
   const afstand = x.gps_afstand;
   const binnen = x.gps_status === 'binnen';
   const afstandTxt = afstand < 1000 ? `${afstand}m` : `${(afstand/1000).toFixed(1)}km`;
@@ -3190,7 +3275,268 @@ function tariefBadge(gemeld, zone) {
     : `<span style="color:var(--red);font-weight:700;">❌ Afwijking! Verwacht €${verwacht.toFixed(2)}</span>`;
 }
 
-/* ===== GPS WIDGET ===== */
+/* ===== BULK PDF EXPORT ===== */
+function bulkPdfInit() {
+  // Stel datums in: begin van deze maand tot vandaag
+  const nu = new Date();
+  const van = `${nu.getFullYear()}-${String(nu.getMonth()+1).padStart(2,'0')}-01`;
+  const tot = lokaleDatum();
+  const vanEl = document.getElementById('bulk-datum-van');
+  const totEl = document.getElementById('bulk-datum-tot');
+  if (vanEl && !vanEl.value) vanEl.value = van;
+  if (totEl && !totEl.value) totEl.value = tot;
+  // Vul monteur dropdown
+  const sel = document.getElementById('bulk-monteur');
+  if (sel && dynamischeMonteurs && sel.options.length <= 1) {
+    dynamischeMonteurs.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m; opt.textContent = m;
+      sel.appendChild(opt);
+    });
+  }
+  bulkPdfPreview();
+}
+
+async function bulkPdfPreview() {
+  const van = document.getElementById('bulk-datum-van')?.value || '';
+  const tot = document.getElementById('bulk-datum-tot')?.value || '';
+  const monteur = document.getElementById('bulk-monteur')?.value || '';
+  const status = document.getElementById('bulk-status')?.value || '';
+  const prev = document.getElementById('bulk-preview');
+  if (!prev) return;
+
+  await ensureDbData();
+  const gefilterd = (dbData||[]).filter(x => {
+    if (van && x.datum < van) return false;
+    if (tot && x.datum > tot) return false;
+    if (monteur && x.mobilist !== monteur) return false;
+    if (status && x.status !== status) return false;
+    return true;
+  });
+
+  const metFotos = document.getElementById('bulk-met-fotos')?.checked;
+  const geschat = gefilterd.length * (metFotos ? 3 : 1.5);
+  prev.innerHTML = `<span style="color:var(--accent);font-weight:600;">${gefilterd.length} formulieren</span> geselecteerd · geschatte PDF: ~${Math.round(geschat)} pagina's · kan ${Math.max(1, Math.round(gefilterd.length * 0.3))}–${Math.max(1, Math.round(gefilterd.length * 0.8))} minuten duren`;
+}
+
+async function exportBulkPDF() {
+  const van = document.getElementById('bulk-datum-van')?.value || '';
+  const tot = document.getElementById('bulk-datum-tot')?.value || '';
+  const monteur = document.getElementById('bulk-monteur')?.value || '';
+  const status = document.getElementById('bulk-status')?.value || '';
+  const metFotos = document.getElementById('bulk-met-fotos')?.checked !== false;
+
+  await ensureDbData();
+  const basis = (dbData||[]).filter(x => {
+    if (van && x.datum < van) return false;
+    if (tot && x.datum > tot) return false;
+    if (monteur && x.mobilist !== monteur) return false;
+    if (status && x.status !== status) return false;
+    return true;
+  }).sort((a,b) => String(b.created_at||b.datum).localeCompare(String(a.created_at||a.datum)));
+
+  if (!basis.length) { toast('⚠️ Geen formulieren gevonden voor deze filters'); return; }
+  if (basis.length > 200) {
+    if (!confirm(`Let op: ${basis.length} formulieren — dit kan lang duren en een groot bestand worden. Doorgaan?`)) return;
+  }
+
+  // Voortgang tonen
+  const vEl = document.getElementById('bulk-voortgang');
+  const vTxt = document.getElementById('bulk-voortgang-tekst');
+  const vBar = document.getElementById('bulk-voortgang-bar');
+  if (vEl) vEl.style.display = 'block';
+
+  const updateVoortgang = (i, totaal, tekst) => {
+    if (vTxt) vTxt.textContent = tekst;
+    if (vBar) vBar.style.width = Math.round(i/totaal*100)+'%';
+  };
+
+  try {
+    const {jsPDF} = window.jspdf;
+    const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+    const pw = doc.internal.pageSize.getWidth();
+    const ph = doc.internal.pageSize.getHeight();
+    const vandaag = new Date().toLocaleDateString('nl-NL');
+
+    // ── VOORPAGINA ──────────────────────────────────────────
+    doc.setFillColor(30,58,138);
+    doc.rect(0,0,pw,ph,'F');
+    doc.setTextColor(255,255,255);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(28);
+    doc.text('CWT S3 Onderhoud', pw/2, 80, {align:'center'});
+    doc.setFontSize(16);
+    doc.text('Bulk export formulieren', pw/2, 100, {align:'center'});
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(12);
+    doc.text(`${basis.length} formulieren`, pw/2, 125, {align:'center'});
+    if (van || tot) doc.text(`Periode: ${van||'—'} t/m ${tot||'—'}`, pw/2, 140, {align:'center'});
+    if (monteur) doc.text(`Monteur: ${monteur}`, pw/2, 155, {align:'center'});
+    if (status) doc.text(`Status: ${status}`, pw/2, 165, {align:'center'});
+    doc.setFontSize(10);
+    doc.text(`Gegenereerd: ${vandaag} door ${userName}`, pw/2, ph-20, {align:'center'});
+
+    // ── INHOUDSOPGAVE ─────────────────────────────────────
+    doc.addPage();
+    doc.setFillColor(248,250,252); doc.rect(0,0,pw,20,'F');
+    doc.setTextColor(30,41,59); doc.setFont('helvetica','bold'); doc.setFontSize(14);
+    doc.text('Inhoudsopgave', 14, 14);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+    let iy = 28;
+    basis.forEach((x, i) => {
+      if (iy > ph - 14) { doc.addPage(); iy = 20; }
+      const cls = x.status === 'goedgekeurd' ? [22,163,74] : x.status === 'afgekeurd' ? [220,38,38] : [30,58,138];
+      doc.setTextColor(...cls);
+      doc.text(`${i+1}.`, 14, iy);
+      doc.setTextColor(30,41,59);
+      doc.text(`${x.automaatnr||'—'} — ${(x.locatie||'—').substring(0,45)} — ${x.mobilist||'—'} — ${x.datum||'—'}`, 22, iy);
+      iy += 5.5;
+    });
+
+    // ── PER FORMULIER ─────────────────────────────────────
+    for (let i = 0; i < basis.length; i++) {
+      updateVoortgang(i+1, basis.length, `Formulier ${i+1} van ${basis.length}: automaat ${basis[i].automaatnr||'?'}...`);
+
+      // Haal volledige data op (inclusief fotos en checklist)
+      let x = basis[i];
+      try {
+        const vol = await sbGetDetail(x.id);
+        if (vol) x = vol;
+      } catch(_) {}
+
+      doc.addPage();
+
+      // Header per formulier
+      const hkleur = x.status==='goedgekeurd'?[22,163,74]:x.status==='afgekeurd'?[220,38,38]:[30,58,138];
+      doc.setFillColor(...hkleur);
+      doc.roundedRect(8,8,pw-16,18,2,2,'F');
+      doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+      doc.text(`#${i+1} — Automaat ${x.automaatnr||'—'} — ${x.datum||'—'}`, pw/2, 19, {align:'center'});
+
+      // Meta info
+      doc.autoTable({
+        body: [
+          ['Locatie', x.locatie||'—', 'Zone', x.zone||'—'],
+          ['Monteur', x.mobilist||'—', 'Tijdstip', x.tijdstip||'—'],
+          ['Score', (x.pct||0)+'%', 'Status', (x.status||'ingediend').charAt(0).toUpperCase()+(x.status||'ingediend').slice(1)],
+          ['Kosten', x.totaal_kosten>0?'€'+parseFloat(x.totaal_kosten).toFixed(2):'—', 'Accu', x.accu_val?x.accu_val+' V':'—'],
+        ],
+        startY: 30, margin:{left:8,right:8},
+        styles:{fontSize:8.5, cellPadding:2.5},
+        columnStyles:{0:{fontStyle:'bold',textColor:[100,116,139],cellWidth:22},2:{fontStyle:'bold',textColor:[100,116,139],cellWidth:22}},
+        theme:'plain', tableLineColor:[226,232,240], tableLineWidth:0.3,
+      });
+
+      let y = doc.lastAutoTable.finalY + 4;
+
+      // Bijzonderheden
+      if (x.bijzonderheden) {
+        doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(100,116,139);
+        doc.text('BIJZONDERHEDEN', 8, y+4); y+=7;
+        doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(30,41,59);
+        const bLines = doc.splitTextToSize(x.bijzonderheden, pw-18);
+        doc.text(bLines, 8, y); y += bLines.length*4+4;
+      }
+
+      // Beheerder notitie
+      if (x.beheerder_notitie) {
+        doc.setFillColor(239,246,255);
+        doc.roundedRect(8, y, pw-16, 10, 1, 1, 'F');
+        doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(30,58,138);
+        doc.text('💬 Notitie beheerder: ', 11, y+6.5);
+        doc.setFont('helvetica','normal'); doc.setTextColor(30,41,59);
+        doc.text(x.beheerder_notitie.substring(0,80), 42, y+6.5);
+        y += 14;
+      }
+
+      // Checklist samenvatting (cos + prev)
+      if (cosItems.length && x.cos) {
+        const cosR = typeof x.cos_remarks==='string'?JSON.parse(x.cos_remarks||'{}'):x.cos_remarks||{};
+        const prevR = typeof x.prev_remarks==='string'?JSON.parse(x.prev_remarks||'{}'):x.prev_remarks||{};
+        const cosObj = typeof x.cos==='string'?JSON.parse(x.cos||'{}'):x.cos||{};
+        const prevObj = typeof x.prev==='string'?JSON.parse(x.prev||'{}'):x.prev||{};
+
+        const cosRows = cosItems.filter(item=>typeof item==='object'&&item.id&&!item.toon_als_waarde&&isZichtbaar(item,cosObj,prevObj,cosR,prevR)).map(item=>{
+          const val = cosVal(cosObj,item,cosItems.indexOf(item));
+          const rem = cosRem(cosR,item,cosItems.indexOf(item));
+          return [item.label||'', val?'✓':'✗', rem||''];
+        });
+        const prevRows = prevItems.filter(item=>typeof item==='object'&&item.id&&isZichtbaar(item,cosObj,prevObj,cosR,prevR)).map(item=>{
+          const val = cosVal(prevObj,item,prevItems.indexOf(item));
+          const rem = cosRem(prevR,item,prevItems.indexOf(item));
+          const isTarief = item.id==='prev_tarief_display';
+          return [item.label||'', val?'✓':'✗', isTarief&&rem?'€'+parseFloat(rem).toFixed(2)+'/uur':rem||''];
+        });
+
+        if (cosRows.length || prevRows.length) {
+          if (y > ph-60) { doc.addPage(); y=14; }
+          doc.autoTable({
+            head:[['Controlepunt','','Opmerking']],
+            body: [...cosRows,...prevRows],
+            startY: y, margin:{left:8,right:8},
+            styles:{fontSize:7.5,cellPadding:1.8},
+            headStyles:{fillColor:[248,250,252],textColor:[100,116,139],fontSize:7,fontStyle:'bold'},
+            columnStyles:{1:{cellWidth:8,halign:'center',fontStyle:'bold'},2:{cellWidth:55}},
+            didParseCell(d){if(d.column.index===1&&d.section==='body'){d.cell.styles.textColor=d.cell.raw==='✓'?[22,163,74]:[220,38,38];}},
+          });
+          y = doc.lastAutoTable.finalY + 4;
+        }
+      }
+
+      // Foto's
+      if (metFotos) {
+        const fotos = x.fotos && x.fotos.length ? x.fotos : (x.foto_base64?[{base64:x.foto_base64,naam:x.foto_naam||'foto'}]:[]);
+        if (fotos.length) {
+          if (y > ph - 70) { doc.addPage(); y = 14; }
+          doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(100,116,139);
+          doc.text(`FOTO'S (${fotos.length})`, 8, y+4); y+=8;
+
+          const fW = (pw-20)/2;
+          const fH = fW * 0.72;
+          let col = 0;
+
+          for (const foto of fotos) {
+            if (y + fH + 8 > ph-10 && col===0) { doc.addPage(); y = 14; }
+            const fx = col===0 ? 8 : 8+fW+4;
+            try {
+              const imgType = foto.base64?.includes('data:image/png')?'PNG':'JPEG';
+              const imgData = foto.base64?.split(',')?.[1]||foto.base64;
+              if (imgData) doc.addImage(imgData, imgType, fx, y, fW, fH, undefined, 'FAST');
+              doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(148,163,184);
+              doc.text((foto.naam||`foto`).substring(0,30), fx+1, y+fH+3.5);
+            } catch(_) {
+              doc.setFillColor(248,250,252); doc.rect(fx,y,fW,fH,'F');
+            }
+            if (col===1) { y += fH+8; col=0; } else col=1;
+          }
+          if (col===1) y += fH+8;
+        }
+      }
+
+      // Paginanummer onderaan
+      doc.setFontSize(7); doc.setTextColor(148,163,184); doc.setFont('helvetica','normal');
+      doc.text(`CWT S3 · ${vandaag} · Formulier ${i+1}/${basis.length}`, pw/2, ph-5, {align:'center'});
+
+      // Kleine pauze om browser te laten ademen
+      if (i % 10 === 9) await new Promise(r => setTimeout(r, 50));
+    }
+
+    // Download
+    updateVoortgang(basis.length, basis.length, 'PDF opslaan...');
+    const bestandsnaam = `CWT_Bulk_${van||'alles'}_${tot||'nu'}_${basis.length}formulieren_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(bestandsnaam);
+    if (vEl) vEl.style.display = 'none';
+    toast(`✅ PDF gedownload — ${basis.length} formulieren`);
+    logAudit(userName, userRole, 'bulk pdf export', `${basis.length} formulieren geëxporteerd als PDF`);
+
+  } catch(e) {
+    if (vEl) vEl.style.display = 'none';
+    toast('❌ PDF genereren mislukt: ' + (e.message||'onbekende fout'));
+    console.error('Bulk PDF fout:', e);
+  }
+}
+
+
 async function buildGpsWidget() {
   const el = document.getElementById('gps-inhoud');
   const cnt = document.getElementById('gps-count');
