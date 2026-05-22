@@ -1938,7 +1938,7 @@ select.filter-input option{background:var(--surface2);}
     <div style="display:flex;flex-direction:column;gap:12px;">
       <div>
         <div class="meta-label" style="margin-bottom:6px;">Monteur</div>
-        <select class="filter-input" id="bulk-monteur" style="width:100%;font-size:15px;">
+        <select class="filter-input" id="bulk-plan-monteur" style="width:100%;font-size:15px;">
           <option value="">— Kies monteur —</option>
           </select>
       </div>
@@ -2799,7 +2799,7 @@ async function verwijderMonteur(naam) {
 function updateMonteurDatalist() {
   const dl = document.getElementById('mobilist-list');
   if (dl) dl.innerHTML = dynamischeMonteurs.map(m=>`<option value="${m}">`).join('');
-  ['plan-monteur','bulk-monteur'].forEach(id => {
+  ['plan-monteur','bulk-plan-monteur'].forEach(id => {
     const sel = document.getElementById(id);
     if (!sel) return;
     const cur = sel.value;
@@ -3460,7 +3460,7 @@ function bulkPdfInit() {
   if (vanEl && !vanEl.value) vanEl.value = van;
   if (totEl && !totEl.value) totEl.value = tot;
   // Vul monteur dropdown
-  const sel = document.getElementById('bulk-monteur');
+  const sel = document.getElementById('bulk-plan-monteur');
   if (sel && dynamischeMonteurs && sel.options.length <= 1) {
     dynamischeMonteurs.forEach(m => {
       const opt = document.createElement('option');
@@ -3474,7 +3474,7 @@ function bulkPdfInit() {
 async function bulkPdfPreview() {
   const van = document.getElementById('bulk-datum-van')?.value || '';
   const tot = document.getElementById('bulk-datum-tot')?.value || '';
-  const monteur = document.getElementById('bulk-monteur')?.value || '';
+  const monteur = document.getElementById('bulk-plan-monteur')?.value || '';
   const status = document.getElementById('bulk-status')?.value || '';
   const prev = document.getElementById('bulk-preview');
   if (!prev) return;
@@ -3496,7 +3496,7 @@ async function bulkPdfPreview() {
 async function exportBulkPDF() {
   const van = document.getElementById('bulk-datum-van')?.value || '';
   const tot = document.getElementById('bulk-datum-tot')?.value || '';
-  const monteur = document.getElementById('bulk-monteur')?.value || '';
+  const monteur = document.getElementById('bulk-plan-monteur')?.value || '';
   const status = document.getElementById('bulk-status')?.value || '';
   const metFotos = document.getElementById('bulk-met-fotos')?.checked !== false;
 
