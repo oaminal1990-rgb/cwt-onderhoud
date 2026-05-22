@@ -3467,69 +3467,67 @@ async function exportBulkPDF() {
 
           // Sectie header
           doc.setFillColor(30,58,138);
-          doc.roundedRect(8, cy, pw-16, 9, 1.5, 1.5, 'F');
-          doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(255,255,255);
-          const gedaan = items.filter((item,i)=>cosVal(dataObj,item,items.indexOf(item))).length;
-          doc.text(sectieLabel, 12, cy+6.2);
-          doc.text(`${gedaan}/${items.length} afgevinkt`, pw-10, cy+6.2, {align:'right'});
-          cy += 12;
+          doc.roundedRect(8, cy, pw-16, 8, 1, 1, 'F');
+          doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(255,255,255);
+          const gedaan = items.filter(item=>cosVal(dataObj,item,items.indexOf(item))).length;
+          doc.text(sectieLabel.replace(/[^\x00-\x7F]/g,''), 12, cy+5.5);
+          doc.text(`${gedaan}/${items.length}`, pw-10, cy+5.5, {align:'right'});
+          cy += 10;
 
-          // Items per rij van 2 kolommen
+          // Items in 2 kolommen
           const kolB = (pw-20)/2;
+          const rH = 8; // rij hoogte
           let col = 0;
           let rijY = cy;
 
-          items.forEach((item, i) => {
-            const label = item.label || '';
+          items.forEach(item => {
+            const label = (item.label||'').replace(/[^\x00-\x7F]/g,'').substring(0,38);
             const val = cosVal(dataObj, item, items.indexOf(item));
             const rem = cosRem(remarkObj, item, items.indexOf(item));
             const isTarief = item.id === 'prev_tarief_display';
-            const remTxt = isTarief && rem ? `€${parseFloat(rem).toFixed(2)}/uur` : rem;
+            const remTxt = (isTarief && rem ? 'EU '+parseFloat(rem).toFixed(2)+'/uur' : rem||'').replace(/[^\x00-\x7F]/g,'').substring(0,32);
 
-            if (rijY + 11 > ph - 10) {
-              doc.addPage();
-              rijY = 14;
-              col = 0;
+            if (rijY + rH + 2 > ph - 10) {
+              doc.addPage(); rijY = 14; col = 0;
             }
 
             const fx = col === 0 ? 8 : 8 + kolB + 4;
 
-            // Achtergrond voor dit item
+            // Achtergrond
             if(val){doc.setFillColor(240,253,244);}else{doc.setFillColor(254,242,242);}
-            doc.roundedRect(fx, rijY, kolB, 10, 1, 1, 'F');
+            doc.rect(fx, rijY, kolB, rH, 'F');
 
-            // Gekleurde indicator balk links
+            // Gekleurde indicator blokje (vervangt ✓/✗)
             if(val){doc.setFillColor(22,163,74);}else{doc.setFillColor(220,38,38);}
-            doc.roundedRect(fx, rijY, 3, 10, 0.5, 0.5, 'F');
+            doc.rect(fx, rijY, 3.5, rH, 'F');
 
-            // Symbool
-            doc.setFont('helvetica','bold'); doc.setFontSize(10);
+            // OK / X tekst (ASCII, werkt altijd)
+            doc.setFont('helvetica','bold'); doc.setFontSize(7);
             if(val){doc.setTextColor(22,163,74);}else{doc.setTextColor(220,38,38);}
-            doc.text(val ? '✓' : '✗', fx+5.5, rijY+6.8);
+            doc.text(val ? 'OK' : 'X', fx+5, rijY+rH/2+2);
 
             // Label
-            doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+            doc.setFont('helvetica', remTxt?'bold':'normal'); doc.setFontSize(remTxt?7:7.5);
             if(val){doc.setTextColor(15,118,56);}else{doc.setTextColor(153,27,27);}
-            const labelTekst = label.substring(0, remTxt ? 28 : 38);
-            doc.text(labelTekst, fx+11, rijY+4.5);
+            doc.text(label.substring(0, remTxt ? 25 : 38), fx+13, rijY+(remTxt?rH/2:rH/2+2.5));
 
-            // Opmerking (grijs, klein)
+            // Opmerking klein eronder
             if (remTxt) {
-              doc.setFont('helvetica','italic'); doc.setFontSize(6.5);
+              doc.setFont('helvetica','normal'); doc.setFontSize(6);
               doc.setTextColor(100,116,139);
-              doc.text(remTxt.substring(0,35), fx+11, rijY+8.5);
+              doc.text(remTxt, fx+13, rijY+rH-1.5);
             }
 
-            if (col === 1) { rijY += 12; col = 0; }
+            if (col === 1) { rijY += rH+1; col = 0; }
             else col = 1;
           });
 
-          if (col === 1) rijY += 12;
+          if (col === 1) rijY += rH+1;
           return rijY + 3;
         };
 
-        y = tekenChecklijst(cosItems2, 'cos', cosObj, cosR, '🔍 Cosmetisch onderhoud', y);
-        y = tekenChecklijst(prevItems2, 'prev', prevObj, prevR, '🔧 Preventief onderhoud', y);
+        y = tekenChecklijst(cosItems2, 'cos', cosObj, cosR, 'COSMETISCH ONDERHOUD', y);
+        y = tekenChecklijst(prevItems2, 'prev', prevObj, prevR, 'PREVENTIEF ONDERHOUD', y);
       }
 
       // Foto's
@@ -3538,7 +3536,7 @@ async function exportBulkPDF() {
         if (fotos.length) {
           if (y > ph - 70) { doc.addPage(); y = 14; }
           doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(100,116,139);
-          doc.text(`FOTO'S (${fotos.length})`, 8, y+4); y+=8;
+          doc.text(`FOTO S (${fotos.length})`, 8, y+4); y+=8;
 
           const fW = (pw-20)/2;
           const fH = fW * 0.72;
