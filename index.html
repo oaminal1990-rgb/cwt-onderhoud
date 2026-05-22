@@ -7222,20 +7222,6 @@ function openMijnDetail(id) {
     html+=`</div>`;
   }
 
-  // Logboek
-  const logboek = x.logboek||[];
-  html += `<div class="detail-section"><div class="detail-section-title">📋 Logboek</div>`;
-  if (!logboek.length) {
-    html += `<div style="font-size:13px;color:var(--text3);padding:8px 0;">Nog geen activiteit</div>`;
-  } else {
-    html += [...logboek].reverse().map(l=>`
-      <div class="logboek-item">
-        <div class="logboek-dot ${l.type||'ingediend'}"></div>
-        <div><div class="logboek-tekst">${l.tekst||''}</div><div class="logboek-tijd">${formatDatum(l.tijd)}</div></div>
-      </div>`).join('');
-  }
-  html += '</div>';
-
   document.getElementById('detail-content').innerHTML = html;
   document.getElementById('detail-overlay').classList.add('open');
 }
@@ -7552,7 +7538,7 @@ function renderMijnList(data) {
     const aanpassenBtn = s==='afgekeurd'
       ? `<button class="btn btn-primary" style="margin-top:10px;min-height:40px;width:100%;" onclick="heropendFormulier(${x.id})">✏️ Aanpassen & opnieuw insturen</button>`
       : '';
-    const logboekHtml = renderLogboekMini(x.logboek);
+    const logboekHtml = ''; // Verborgen voor medewerker
     return `<div class="mijn-item" onclick="openMijnDetail(${x.id})">
       <div style="display:flex;align-items:flex-start;gap:14px;width:100%;">
         <div style="padding-top:2px;">${statusBadge(s)}</div>
