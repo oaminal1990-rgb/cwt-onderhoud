@@ -2243,7 +2243,7 @@ function buildChecks(items,cId,prefix,pId,bId,count){const el=document.getElemen
     }
   }
 
-  const div=document.createElement('div');div.className='check-item'+(state[prefix][key]?' completed':'');div.id=prefix+'-item-'+key;
+  const div=document.createElement('div');div.className='check-item'+(state[prefix][key]?' completed':'');div.id=prefix+'-item-'+key;div.dataset.itemId=key;
   let extra;
   if(isObj&&item.hasSelect){
     const opties = item.options || [];
@@ -2311,15 +2311,21 @@ function buildChecks(items,cId,prefix,pId,bId,count){const el=document.getElemen
       updateProgress('${prefix}','${pId}','${bId}',${count});
     "/><span style="font-size:12px;color:var(--text3);">V</span></div>`;
   } else {
+    // Check of dit item kinderen heeft die conditioneel op dit item zijn
+    const heeftKinderen = items.some(x=>typeof x==='object'&&x.toon_als===String(key));
+    const herenderCode = heeftKinderen ?
+      `if('${prefix}'==='prev'){buildChecks(prevItems,'prev-checks','prev','prev-txt','prev-bar',prevItems.length);}else{buildChecks(cosItems,'cos-checks','cos','cos-txt','cos-bar',cosItems.length);}` : '';
     extra=`<textarea class="remarks-input" rows="1" placeholder="Bijzonderheden..." style="width:200px;" oninput="
       state['${prefix}Remarks']['${key}']=this.value;
       const hasVal=this.value.trim()!=='';
+      const wasVal=state['${prefix}']['${key}'];
       state['${prefix}']['${key}']=hasVal;
       const d=document.getElementById('${prefix}-item-${key}');
       if(hasVal){d.classList.add('completed');}else{d.classList.remove('completed');}
       const cb=d.querySelector('input[type=checkbox]');
       if(cb)cb.checked=hasVal;
       updateProgress('${prefix}','${pId}','${bId}',${count});
+      if(hasVal!==wasVal){${herenderCode}}
     ">${state[prefix+'Remarks'][key]||''}</textarea>`;
   }
   div.innerHTML=`<div class="check-label">${label}</div>${extra}<label class="toggle"><input type="checkbox" ${state[prefix][key]?'checked':''} onchange="toggleCheck('${prefix}','${key}',this.checked,'${pId}','${bId}',${count})"/><div class="toggle-track"><div class="toggle-thumb"></div></div></label>`;el.appendChild(div);});updateProgress(prefix,pId,bId,count);}
@@ -2391,30 +2397,111 @@ function validateStep(step) {
     const mobilist = document.getElementById('mobilist').value.trim();
     const locatie = document.getElementById('locatie').value.trim();
     const zone = document.getElementById('zone').value.trim();
-    if (!automaatnr) { toast('⚠️ Vul het automaatnummer in'); return false; }
-    if (!datum) { toast('⚠️ Vul de datum in'); return false; }
-    if (!tijdstip) { toast('⚠️ Vul het tijdstip in'); return false; }
-    if (!mobilist) { toast('⚠️ Selecteer of vul een mobilist in'); return false; }
-    if (!locatie) { toast('⚠️ Locatie ontbreekt — selecteer een geldig automaatnummer'); return false; }
-    if (!zone) { toast('⚠️ Zone ontbreekt — selecteer een geldig automaatnummer'); return false; }
+
+    const markRood = (id) => {
+      const el = document.getElementById(id);
+      if (el) { el.style.borderColor = 'var(--red)'; el.style.boxShadow = '0 0 0 2px rgba(239,68,68,.2)'; setTimeout(()=>{el.style.borderColor='';el.style.boxShadow='';},3000); }
+    };
+    if (!automaatnr) { markRood('automaatnr'); toast('⚠️ Automaatnummer is verplicht'); return false; }
+    if (!datum)      { markRood('datum');      toast('⚠️ Datum is verplicht'); return false; }
+    if (!tijdstip)   { markRood('tijdstip');   toast('⚠️ Tijdstip is verplicht'); return false; }
+    if (!mobilist)   { markRood('mobilist');   toast('⚠️ Mobilist is verplicht'); return false; }
+    if (!locatie)    { toast('⚠️ Locatie ontbreekt — selecteer een geldig automaatnummer'); return false; }
+    if (!zone)       { toast('⚠️ Zone ontbreekt — selecteer een geldig automaatnummer'); return false; }
   }
+
   if (step === 2) {
-    const total = cosItems.length;
-    const done = Object.values(state.cos).filter(Boolean).length;
-    if (done / total < 0.55) {
-      toast('⚠️ Vul meer cosmetische punten in voordat je verder gaat');
-      return false;
+    // Controleer alle verplichte select-items (met dropdown) in cosmetisch
+    const verplichtItems = cosItems.filter(item =>
+      item.required && item.hasSelect &&
+      isZichtbaar(item, state.cos, state.prev, state.cosRemarks, state.prevRemarks)
+    );
+    for (const item of verplichtItems) {
+      const val = (state.cosRemarks || {})[item.id] || '';
+      if (!val) {
+        // Markeer het veld rood
+        const sel = document.querySelector(`[data-item-id="${item.id}"] select`);
+        if (sel) {
+          sel.style.borderColor = 'var(--red)';
+          sel.style.boxShadow = '0 0 0 2px rgba(239,68,68,.2)';
+          sel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setTimeout(() => { sel.style.borderColor = ''; sel.style.boxShadow = ''; }, 3000);
+        }
+        toast(`⚠️ Verplicht: "${item.label}"`);
+        return false;
+      }
     }
   }
+
   if (step === 3) {
-    const total = prevItems.length;
-    const done = Object.values(state.prev).filter(Boolean).length;
-    if (done / total < 0.55) {
-      toast('⚠️ Vul meer preventieve punten in voordat je verder gaat');
+    // Controleer alle verplichte select-items in preventief
+    const verplichtItems = prevItems.filter(item =>
+      item.required && item.hasSelect &&
+      isZichtbaar(item, state.cos, state.prev, state.cosRemarks, state.prevRemarks)
+    );
+    for (const item of verplichtItems) {
+      const val = (state.prevRemarks || {})[item.id] || '';
+      if (!val) {
+        const sel = document.querySelector(`[data-item-id="${item.id}"] select`);
+        if (sel) {
+          sel.style.borderColor = 'var(--red)';
+          sel.style.boxShadow = '0 0 0 2px rgba(239,68,68,.2)';
+          sel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setTimeout(() => { sel.style.borderColor = ''; sel.style.boxShadow = ''; }, 3000);
+        }
+        toast(`⚠️ Verplicht: "${item.label}"`);
+        return false;
+      }
+    }
+    // Accucapaciteit altijd verplicht
+    if (!state.accuVal) {
+      const el = document.getElementById('accu-input');
+      if (el) {
+        el.style.borderColor = 'var(--red)';
+        el.style.boxShadow = '0 0 0 2px rgba(239,68,68,.2)';
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => { el.style.borderColor = ''; el.style.boxShadow = ''; }, 3000);
+      }
+      toast('⚠️ Accucapaciteit is verplicht (Volt)');
       return false;
     }
-    if (!state.accuVal) { toast('⚠️ Vul de accucapaciteit in (Volt)'); return false; }
+    // Tarief display altijd verplicht (value-type inline item)
+    const tariefVal = (state.prevRemarks || {})['prev_tarief_display'] || '';
+    // Controleer of tarief display zichtbaar is (alleen wanneer prev_test is ingevuld)
+    const prevTestVal = (state.prevRemarks || {})['prev_test'] || '';
+    const tariefZichtbaar = prevTestVal !== '';
+    if (tariefZichtbaar && !tariefVal) {
+      const el = document.getElementById('inline-prev_tarief_display');
+      if (el) {
+        el.style.borderColor = 'var(--red)';
+        el.style.boxShadow = '0 0 0 2px rgba(239,68,68,.2)';
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => { el.style.borderColor = ''; el.style.boxShadow = ''; }, 3000);
+      }
+      toast('⚠️ Tarief display is verplicht (bijv. 2.24)');
+      return false;
+    }
+    // Bovenslot en onderslot verplicht als esloten zichtbaar is
+    const eslotenAan = state.prev['prev_esloten'] === true || (state.prevRemarks['prev_esloten']||'') !== '';
+    if (eslotenAan) {
+      for (const slotId of ['prev_bovenslot','prev_onderslot']) {
+        const slotVal = (state.prevRemarks || {})[slotId] || '';
+        if (!slotVal) {
+          const slotItem = prevItems.find(x=>typeof x==='object'&&x.id===slotId);
+          const sel = document.querySelector(`[data-item-id="${slotId}"] select`);
+          if (sel) {
+            sel.style.borderColor = 'var(--red)';
+            sel.style.boxShadow = '0 0 0 2px rgba(239,68,68,.2)';
+            sel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => { sel.style.borderColor = ''; sel.style.boxShadow = ''; }, 3000);
+          }
+          toast(`⚠️ Verplicht: "${slotItem?.label || slotId}"`);
+          return false;
+        }
+      }
+    }
   }
+
   return true;
 }
 function goStep(s){for(let i=currentStep;i<s;i++)markDone(i);currentStep=s;renderStep();}
