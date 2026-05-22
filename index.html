@@ -6036,7 +6036,6 @@ function planItemHTML(p, toonVerwijder=false) {
   // Check of er een formulier is voor deze afgeronde taak
   const heeftFormulier = !isAfgerond || (dbData||[]).some(x =>
     x.automaatnr === p.automaatnr &&
-    x.datum === p.datum &&
     x.mobilist?.toLowerCase() === p.monteur?.toLowerCase()
   );
   return `<div class="plan-item" style="${isAfgerond && !heeftFormulier ? 'border-left:3px solid var(--amber);' : ''}">
@@ -6380,7 +6379,6 @@ async function markeerAfgerond(id) {
   // Check of er al een formulier is voor deze automaat op deze datum
   const heeftFormulier = (dbData||[]).some(x =>
     x.automaatnr === taak.automaatnr &&
-    x.datum === taak.datum &&
     x.mobilist?.toLowerCase() === taak.monteur?.toLowerCase()
   );
 
