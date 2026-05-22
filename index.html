@@ -495,16 +495,6 @@ select.filter-input option{background:var(--surface2);}
       </div>
     </div>
 
-    <div id="banner-teruggestuurd" style="display:none;background:var(--amber-bg);border:1px solid rgba(245,158,11,.4);border-radius:10px;padding:12px 16px;margin-bottom:12px;cursor:pointer;" onclick="switchTab('mijn')">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <span style="font-size:20px;">↩️</span>
-        <div>
-          <div style="font-weight:700;font-size:14px;color:var(--amber);" id="banner-teruggestuurd-tekst">Formulieren teruggestuurd — aanpassen vereist</div>
-          <div style="font-size:12px;color:var(--text3);">Klik hier om te zien wat er ontbreekt</div>
-        </div>
-        <span style="margin-left:auto;font-size:18px;color:var(--amber);">→</span>
-      </div>
-    </div>
 
     <div class="steps">
       <div class="step active" id="step1" onclick="goStep(1)"><div class="step-num">1</div><span class="step-label">Algemeen</span></div>
@@ -1117,6 +1107,114 @@ select.filter-input option{background:var(--surface2);}
             <div id="bulk-voortgang-bar" style="height:100%;background:var(--accent);border-radius:3px;transition:width .3s;width:0%;"></div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- ACCU CORROSIE -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header" onclick="superToggle('accucorrosie')" style="cursor:pointer;user-select:none;">
+        <div class="card-icon" style="background:var(--amber-bg);">🔋</div>
+        <div><div class="card-title">Accu corrosie</div><div class="card-subtitle" id="accucorrosie-subtitle">Automaten met corrosie op de accu</div></div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;" onclick="event.stopPropagation()">
+          <button class="btn btn-ghost" onclick="buildAccuCorrosieWidget()" style="font-size:12px;">↻</button>
+          <button class="btn btn-ghost" onclick="exportWidget('accucorrosie')" style="font-size:12px;">📊 Excel</button>
+          <button class="btn btn-ghost" onclick="exportWidgetPDF('accucorrosie')" style="font-size:12px;">📄 PDF</button>
+        </div>
+        <span id="sb-chev-accucorrosie" style="margin-left:8px;font-size:18px;color:var(--text3);transition:transform .2s;">▼</span>
+      </div>
+      <div id="sb-body-accucorrosie" style="display:none;">
+        <div class="filter-bar"><input class="filter-input" id="accucorrosie-search" placeholder="Zoek automaat..." style="flex:1;" oninput="buildAccuCorrosieWidget()"/></div>
+        <div id="accucorrosie-lijst"></div>
+      </div>
+    </div>
+
+    <!-- HYDRO KORRELS -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header" onclick="superToggle('hydrokorrels')" style="cursor:pointer;user-select:none;">
+        <div class="card-icon" style="background:var(--red-bg);">💧</div>
+        <div><div class="card-title">Hydro korrels ontbreekt</div><div class="card-subtitle" id="hydrokorrels-subtitle">Solar automaten zonder hydro korrels</div></div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;" onclick="event.stopPropagation()">
+          <button class="btn btn-ghost" onclick="buildHydroKorrelsWidget()" style="font-size:12px;">↻</button>
+          <button class="btn btn-ghost" onclick="exportWidget('hydrokorrels')" style="font-size:12px;">📊 Excel</button>
+          <button class="btn btn-ghost" onclick="exportWidgetPDF('hydrokorrels')" style="font-size:12px;">📄 PDF</button>
+        </div>
+        <span id="sb-chev-hydrokorrels" style="margin-left:8px;font-size:18px;color:var(--text3);transition:transform .2s;">▼</span>
+      </div>
+      <div id="sb-body-hydrokorrels" style="display:none;">
+        <div class="filter-bar"><input class="filter-input" id="hydrokorrels-search" placeholder="Zoek automaat..." style="flex:1;" oninput="buildHydroKorrelsWidget()"/></div>
+        <div id="hydrokorrels-lijst"></div>
+      </div>
+    </div>
+
+    <!-- SOLAR LAADT NIET -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header" onclick="superToggle('solarlaadt')" style="cursor:pointer;user-select:none;">
+        <div class="card-icon" style="background:var(--red-bg);">☀️</div>
+        <div><div class="card-title">Solar accu laadt niet</div><div class="card-subtitle" id="solarlaadt-subtitle">Solar automaten waarbij accu niet wordt opgeladen</div></div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;" onclick="event.stopPropagation()">
+          <button class="btn btn-ghost" onclick="buildSolarLaadtWidget()" style="font-size:12px;">↻</button>
+          <button class="btn btn-ghost" onclick="exportWidget('solarlaadt')" style="font-size:12px;">📊 Excel</button>
+          <button class="btn btn-ghost" onclick="exportWidgetPDF('solarlaadt')" style="font-size:12px;">📄 PDF</button>
+        </div>
+        <span id="sb-chev-solarlaadt" style="margin-left:8px;font-size:18px;color:var(--text3);transition:transform .2s;">▼</span>
+      </div>
+      <div id="sb-body-solarlaadt" style="display:none;">
+        <div class="filter-bar"><input class="filter-input" id="solarlaadt-search" placeholder="Zoek automaat..." style="flex:1;" oninput="buildSolarLaadtWidget()"/></div>
+        <div id="solarlaadt-lijst"></div>
+      </div>
+    </div>
+
+    <!-- BOVENSLOT DEFECT -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header" onclick="superToggle('bovenslot')" style="cursor:pointer;user-select:none;">
+        <div class="card-icon" style="background:var(--red-bg);">🔒</div>
+        <div><div class="card-title">Bovenslot defect</div><div class="card-subtitle" id="bovenslot-subtitle">Automaten met bovenslot niet in orde</div></div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;" onclick="event.stopPropagation()">
+          <button class="btn btn-ghost" onclick="buildBovenslotWidget()" style="font-size:12px;">↻</button>
+          <button class="btn btn-ghost" onclick="exportWidget('bovenslot')" style="font-size:12px;">📊 Excel</button>
+          <button class="btn btn-ghost" onclick="exportWidgetPDF('bovenslot')" style="font-size:12px;">📄 PDF</button>
+        </div>
+        <span id="sb-chev-bovenslot" style="margin-left:8px;font-size:18px;color:var(--text3);transition:transform .2s;">▼</span>
+      </div>
+      <div id="sb-body-bovenslot" style="display:none;">
+        <div class="filter-bar"><input class="filter-input" id="bovenslot-search" placeholder="Zoek automaat..." style="flex:1;" oninput="buildBovenslotWidget()"/></div>
+        <div id="bovenslot-lijst"></div>
+      </div>
+    </div>
+
+    <!-- ONDERSLOT DEFECT -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header" onclick="superToggle('onderslot')" style="cursor:pointer;user-select:none;">
+        <div class="card-icon" style="background:var(--red-bg);">🔐</div>
+        <div><div class="card-title">Onderslot defect</div><div class="card-subtitle" id="onderslot-subtitle">Automaten met onderslot niet in orde</div></div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;" onclick="event.stopPropagation()">
+          <button class="btn btn-ghost" onclick="buildOnderslotWidget()" style="font-size:12px;">↻</button>
+          <button class="btn btn-ghost" onclick="exportWidget('onderslot')" style="font-size:12px;">📊 Excel</button>
+          <button class="btn btn-ghost" onclick="exportWidgetPDF('onderslot')" style="font-size:12px;">📄 PDF</button>
+        </div>
+        <span id="sb-chev-onderslot" style="margin-left:8px;font-size:18px;color:var(--text3);transition:transform .2s;">▼</span>
+      </div>
+      <div id="sb-body-onderslot" style="display:none;">
+        <div class="filter-bar"><input class="filter-input" id="onderslot-search" placeholder="Zoek automaat..." style="flex:1;" oninput="buildOnderslotWidget()"/></div>
+        <div id="onderslot-lijst"></div>
+      </div>
+    </div>
+
+    <!-- OPTIMA ACCU TELLING -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header" onclick="superToggle('optimaaccu')" style="cursor:pointer;user-select:none;">
+        <div class="card-icon" style="background:var(--green-bg);">⚡</div>
+        <div><div class="card-title">Optima accu overzicht</div><div class="card-subtitle" id="optimaaccu-subtitle">Aantal accu's per solar automaat</div></div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;" onclick="event.stopPropagation()">
+          <button class="btn btn-ghost" onclick="buildOptimaAccuWidget()" style="font-size:12px;">↻</button>
+          <button class="btn btn-ghost" onclick="exportWidget('optimaaccu')" style="font-size:12px;">📊 Excel</button>
+          <button class="btn btn-ghost" onclick="exportWidgetPDF('optimaaccu')" style="font-size:12px;">📄 PDF</button>
+        </div>
+        <span id="sb-chev-optimaaccu" style="margin-left:8px;font-size:18px;color:var(--text3);transition:transform .2s;">▼</span>
+      </div>
+      <div id="sb-body-optimaaccu" style="display:none;">
+        <div class="filter-bar"><input class="filter-input" id="optimaaccu-search" placeholder="Zoek automaat..." style="flex:1;" oninput="buildOptimaAccuWidget()"/></div>
+        <div id="optimaaccu-lijst"></div>
       </div>
     </div>
 
@@ -2780,10 +2878,17 @@ function superToggle(id) {
     if (id === 'zones') buildZonesWidget();
     if (id === 'verdacht') buildVerdachtWidget();
     if (id === 'archief') renderArchief();
+    if (id === 'dossier') { document.getElementById('dossier-zoek')?.focus(); }
     if (id === 'sla') buildSlaWidget();
     if (id === 'autostatus') buildAutostatuWidget();
     if (id === 'vergelijk') buildVergelijkWidget();
     if (id === 'bulkpdf') bulkPdfInit();
+    if (id === 'accucorrosie') buildAccuCorrosieWidget();
+    if (id === 'hydrokorrels') buildHydroKorrelsWidget();
+    if (id === 'solarlaadt') buildSolarLaadtWidget();
+    if (id === 'bovenslot') buildBovenslotWidget();
+    if (id === 'onderslot') buildOnderslotWidget();
+    if (id === 'optimaaccu') buildOptimaAccuWidget();
     if (id === 'gps') buildGpsWidget();
     if (id === 'tarief') buildTariefWidget();
     if (id === 'exportmont') { const s=document.getElementById('export-monteur-keuze'); if(s&&dynamischeMonteurs) s.innerHTML='<option value="">— Kies monteur —</option>'+dynamischeMonteurs.map(m=>`<option value="${m}">${m}</option>`).join(''); }
@@ -3107,23 +3212,23 @@ function buildSolarWidget(){const zoek=(document.getElementById('solar-search')?
 function buildMaandWidget(){const data=dbData||[];const el=document.getElementById('maand-lijst');if(!el||!data.length){if(el)el.innerHTML='<div class="plan-empty">Geen data</div>';return;}const mnd={};data.forEach(x=>{const m=(x.datum||'').slice(0,7);if(!m)return;if(!mnd[m])mnd[m]={b:0,g:0,a:0,s:0,k:0,gr:0,vw:0,r:0};mnd[m].b++;mnd[m].s+=(x.pct||0);mnd[m].k+=(x.totaal_kosten||0);if((x.status||'')==='goedgekeurd')mnd[m].g++;if((x.status||'')==='afgekeurd')mnd[m].a++;const r=x.cos_remarks||{};if(r['cos_graffiti']==='Ja er is Graffiti'||r[1]==='Ja er is Graffiti')mnd[m].gr++;const v=r['cos_vuurwerk']||r[8]||'';if(v==='Nee ontbreekt'||v.includes('schade'))mnd[m].vw++;if(cosVal(x.prev,{id:'prev_roest'},4))mnd[m].r++;});const ges=Object.entries(mnd).sort((a,b)=>b[0].localeCompare(a[0]));el.innerHTML=`<div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;gap:0;font-size:11px;background:var(--surface2);border-bottom:1px solid var(--border);">${['Maand','Beurten','Goed','Afgek.','Gem. %','Kosten','🎨','🧨','🔴'].map(h=>`<div style="padding:8px 10px;font-weight:600;color:var(--text3);">${h}</div>`).join('')}</div>`+ges.map(([m,d],i)=>{const gem=d.b?Math.round(d.s/d.b):0;const kl=gem>=90?'var(--green)':gem>=70?'var(--amber)':'var(--red)';const[j,mn]=m.split('-');return`<div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;border-bottom:1px solid var(--border);background:${i%2?'':'var(--surface2)'};font-size:12px;"><div style="padding:10px 10px;font-weight:600;">${MAANDEN[parseInt(mn)-1]} ${j}</div><div style="padding:10px 10px;font-family:var(--mono);font-weight:700;color:var(--accent);">${d.b}</div><div style="padding:10px 10px;color:var(--green);">${d.g}</div><div style="padding:10px 10px;color:var(--red);">${d.a}</div><div style="padding:10px 10px;font-family:var(--mono);color:${kl};font-weight:700;">${gem}%</div><div style="padding:10px 10px;font-family:var(--mono);color:var(--amber);">${d.k>0?formatEuro(d.k):'—'}</div><div style="padding:10px 10px;color:${d.gr?'var(--amber)':'var(--text3)'};">${d.gr||'—'}</div><div style="padding:10px 10px;color:${d.vw?'var(--red)':'var(--text3)'};">${d.vw||'—'}</div><div style="padding:10px 10px;color:${d.r?'var(--red)':'var(--text3)'};">${d.r||'—'}</div></div>`;}).join('');}
 
 function exportWidget(id){
-  const titels={vuurwerk:'Vuurwerkkap meldingen',schade:'Schade meldingen',roest:'Roest en vocht',accu:'Lage accuspanning',onderdelen:'Vervangen onderdelen',test:'Testbetaling niet uitgevoerd',solar:'Solar verwaarlozing',maand:'Maandrapportage'};
+  const titels={vuurwerk:'Vuurwerkkap meldingen',schade:'Schade meldingen',roest:'Roest en vocht',accu:'Lage accuspanning',onderdelen:'Vervangen onderdelen',test:'Testbetaling niet uitgevoerd',solar:'Solar verwaarlozing',maand:'Maandrapportage',accucorrosie:'Accu corrosie',hydrokorrels:'Hydro korrels ontbreekt',solarlaadt:'Solar laadt niet',bovenslot:'Bovenslot defect',onderslot:'Onderslot defect',optimaaccu:'Optima accu overzicht'};
   const vandaag=new Date().toLocaleDateString('nl-NL');const wb=XLSX.utils.book_new();
   const solarIdx=cosItems.findIndex(i=>typeof i==='object'&&i.id==='cos_solar');const testIdx=prevItems.findIndex(i=>typeof i==='object'&&i.id==='prev_test');const roestIdx=prevItems.findIndex(i=>typeof i==='object'&&i.id==='prev_roest');const schadeIdx=cosItems.findIndex(i=>typeof i==='object'&&i.id==='cos_schade');const drempel=parseFloat(document.getElementById('accu-drempel')?.value||12);
   if(id==='maand'){const mnd={};(dbData||[]).forEach(x=>{const m=(x.datum||'').slice(0,7);if(!m)return;if(!mnd[m])mnd[m]={b:0,g:0,a:0,s:0,k:0,gr:0,vw:0};mnd[m].b++;mnd[m].s+=(x.pct||0);mnd[m].k+=(x.totaal_kosten||0);if((x.status||'')==='goedgekeurd')mnd[m].g++;if((x.status||'')==='afgekeurd')mnd[m].a++;const r=x.cos_remarks||{};if(r['cos_graffiti']==='Ja er is Graffiti'||r[1]==='Ja er is Graffiti')mnd[m].gr++;const v=r['cos_vuurwerk']||r[8]||'';if(v==='Nee ontbreekt'||v.includes('schade'))mnd[m].vw++;});const ws=XLSX.utils.aoa_to_sheet([['CWT S3 — Maandrapportage'],[`Gegenereerd: ${vandaag}`],[],['Maand','Beurten','Goedgekeurd','Afgekeurd','Gem. %','Kosten','Graffiti','Vuurwerk'],...Object.entries(mnd).sort((a,b)=>b[0].localeCompare(a[0])).map(([m,d])=>{const[j,mn]=m.split('-');return[MAANDEN[parseInt(mn)-1]+' '+j,d.b,d.g,d.a,d.b?Math.round(d.s/d.b)+'%':'0%',d.k>0?formatEuro(d.k):'',d.gr||'',d.vw||''];})]);ws['!cols']=[16,8,12,10,8,14,10,10].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws,'Maandrapportage');}
   else if(id==='onderdelen'){const agg={};(dbData||[]).filter(x=>x.onderdelen&&x.onderdelen.length).forEach(x=>{(x.onderdelen||[]).forEach(o=>{if(!agg[o.naam])agg[o.naam]={naam:o.naam,nr:o.nr||'',aantal:0,totaal:0};agg[o.naam].aantal+=(o.aantal||1);agg[o.naam].totaal+=(o.totaal||0);});});const ws=XLSX.utils.aoa_to_sheet([['CWT S3 — Onderdelen'],[`Gegenereerd: ${vandaag}`],[],['Onderdeel','Artikelnr.','Totaal aantal','Totale kosten'],...Object.values(agg).sort((a,b)=>b.totaal-a.totaal).map(o=>[o.naam,o.nr,o.aantal,formatEuro(o.totaal)])]);ws['!cols']=[40,14,14,14].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws,'Onderdelen');}
-  else{let fn;if(id==='vuurwerk')fn=x=>{const v=(x.cos_remarks||{})['cos_vuurwerk']||(x.cos_remarks||{})[8]||'';return v==='Nee ontbreekt'||v==='Ja aanwezig maar met schade';};if(id==='schade')fn=x=>{const r=(x.cos_remarks||{})['cos_schade']||(x.cos_remarks||{})[7]||'';return r==='Ja er is schade';};if(id==='roest')fn=x=>{const r=(x.prev_remarks||{})['prev_roest']||'';const v=(x.prev_remarks||{})['prev_vocht']||'';return r==='Ja er is roest'||v==='Ja';};if(id==='accu')fn=x=>x.accu_val&&parseFloat(x.accu_val)<drempel;if(id==='test')fn=x=>{const r=(x.prev_remarks||{})['prev_test']||'';return r==='Mislukt'||r==='Geen testpas';};if(id==='solar')fn=x=>{const isSolar=x.automaat_type==='Solar';return isSolar&&!cosVal(x.cos,{id:'cos_solar'},solarIdx>=0?solarIdx:6);};const gef=(dbData||[]).filter(fn||Boolean);const ws=XLSX.utils.aoa_to_sheet([[`CWT S3 — ${titels[id]}`],[`Gegenereerd: ${vandaag} · ${gef.length} meldingen`],[],['Datum','Automaatnr.','Locatie','Zone','Monteur','Score %','Status','Bijzonderheden'],...gef.map(x=>[x.datum||'',x.automaatnr||'',x.locatie||'',x.zone||'',x.mobilist||'',(x.pct||0)+'%',(x.status||'ingediend'),(x.bijzonderheden||'')])]);ws['!cols']=[10,12,38,6,14,8,14,24].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws,titels[id].slice(0,31));}
+  else{let fn;if(id==='vuurwerk')fn=x=>{const v=(x.cos_remarks||{})['cos_vuurwerk']||(x.cos_remarks||{})[8]||'';return v==='Nee ontbreekt'||v==='Ja aanwezig maar met schade';};if(id==='schade')fn=x=>{const r=(x.cos_remarks||{})['cos_schade']||(x.cos_remarks||{})[7]||'';return r==='Ja er is schade';};if(id==='roest')fn=x=>{const r=(x.prev_remarks||{})['prev_roest']||'';const v=(x.prev_remarks||{})['prev_vocht']||'';return r==='Ja er is roest'||v==='Ja';};if(id==='accu')fn=x=>x.accu_val&&parseFloat(x.accu_val)<drempel;if(id==='test')fn=x=>{const r=(x.prev_remarks||{})['prev_test']||'';return r==='Mislukt'||r==='Geen testpas';};if(id==='solar')fn=x=>{const isSolar=x.automaat_type==='Solar';return isSolar&&!cosVal(x.cos,{id:'cos_solar'},solarIdx>=0?solarIdx:6);};if(id==='accucorrosie')fn=x=>{return(x.prev_remarks||{})['prev_accu1']==='Ja er is corrosie';};if(id==='hydrokorrels')fn=x=>{return(x.prev_remarks||{})['prev_hydro_korrels']==='Nee';};if(id==='solarlaadt')fn=x=>{return(x.prev_remarks||{})['prev_solar']==='Nee';};if(id==='bovenslot')fn=x=>{return(x.prev_remarks||{})['prev_bovenslot']==='Nee';};if(id==='onderslot')fn=x=>{return(x.prev_remarks||{})['prev_onderslot']==='Nee';};if(id==='optimaaccu')fn=x=>{return !!(x.prev_remarks||{})['prev_optima_accu'];};const gef=(dbData||[]).filter(fn||Boolean);const ws=XLSX.utils.aoa_to_sheet([[`CWT S3 — ${titels[id]}`],[`Gegenereerd: ${vandaag} · ${gef.length} meldingen`],[],['Datum','Automaatnr.','Locatie','Zone','Monteur','Score %','Status','Bijzonderheden'],...gef.map(x=>[x.datum||'',x.automaatnr||'',x.locatie||'',x.zone||'',x.mobilist||'',(x.pct||0)+'%',(x.status||'ingediend'),(x.bijzonderheden||'')])]);ws['!cols']=[10,12,38,6,14,8,14,24].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws,titels[id].slice(0,31));}
   XLSX.writeFile(wb,`CWT_${id}_${new Date().toISOString().split('T')[0]}.xlsx`);toast(`📊 ${titels[id]} gedownload`);logAudit(userName,userRole,'export',`Widget Excel: ${titels[id]}`);
 }
 
 function exportWidgetPDF(id){
-  const titels={vuurwerk:'Vuurwerkkap meldingen',schade:'Schade meldingen',roest:'Roest en vocht',accu:'Lage accuspanning',onderdelen:'Vervangen onderdelen',test:'Testbetaling niet uitgevoerd',solar:'Solar verwaarlozing',maand:'Maandrapportage'};
+  const titels={vuurwerk:'Vuurwerkkap meldingen',schade:'Schade meldingen',roest:'Roest en vocht',accu:'Lage accuspanning',onderdelen:'Vervangen onderdelen',test:'Testbetaling niet uitgevoerd',solar:'Solar verwaarlozing',maand:'Maandrapportage',accucorrosie:'Accu corrosie',hydrokorrels:'Hydro korrels ontbreekt',solarlaadt:'Solar laadt niet',bovenslot:'Bovenslot defect',onderslot:'Onderslot defect',optimaaccu:'Optima accu overzicht'};
   toast('⏳ PDF wordt gegenereerd...');const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});const pw=doc.internal.pageSize.getWidth();const vandaag=new Date().toLocaleDateString('nl-NL');
   doc.setFillColor(30,58,138);doc.roundedRect(10,8,pw-20,14,2,2,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text(`CWT S3 — ${titels[id]}`,pw/2,17,{align:'center'});doc.setFont('helvetica','normal');doc.setFontSize(8);doc.text(`Gegenereerd op ${vandaag}`,pw/2,23,{align:'center'});doc.setTextColor(30,41,59);
   const solarIdx=cosItems.findIndex(i=>typeof i==='object'&&i.id==='cos_solar');const testIdx=prevItems.findIndex(i=>typeof i==='object'&&i.id==='prev_test');const roestIdx=prevItems.findIndex(i=>typeof i==='object'&&i.id==='prev_roest');const schadeIdx=cosItems.findIndex(i=>typeof i==='object'&&i.id==='cos_schade');const drempel=parseFloat(document.getElementById('accu-drempel')?.value||12);
   if(id==='maand'){const mnd={};(dbData||[]).forEach(x=>{const m=(x.datum||'').slice(0,7);if(!m)return;if(!mnd[m])mnd[m]={b:0,g:0,a:0,s:0,k:0,gr:0,vw:0};mnd[m].b++;mnd[m].s+=(x.pct||0);mnd[m].k+=(x.totaal_kosten||0);if((x.status||'')==='goedgekeurd')mnd[m].g++;if((x.status||'')==='afgekeurd')mnd[m].a++;const r=x.cos_remarks||{};if(r['cos_graffiti']==='Ja er is Graffiti'||r[1]==='Ja er is Graffiti')mnd[m].gr++;const v=r['cos_vuurwerk']||r[8]||'';if(v==='Nee ontbreekt'||v.includes('schade'))mnd[m].vw++;});doc.autoTable({head:[['Maand','Beurten','Goedgekeurd','Afgekeurd','Gem. %','Kosten','Graffiti','Vuurwerk']],body:Object.entries(mnd).sort((a,b)=>b[0].localeCompare(a[0])).map(([m,d])=>{const[j,mn]=m.split('-');return[MAANDEN[parseInt(mn)-1]+' '+j,d.b,d.g,d.a,d.b?Math.round(d.s/d.b)+'%':'0%',d.k>0?formatEuro(d.k):'—',d.gr||'—',d.vw||'—'];}),startY:28,margin:{left:10,right:10},styles:{fontSize:9,cellPadding:3,halign:'center'},headStyles:{fillColor:[30,58,138],textColor:255,fontStyle:'bold'},alternateRowStyles:{fillColor:[248,250,252]},columnStyles:{0:{halign:'left',fontStyle:'bold',cellWidth:28}}});}
   else if(id==='onderdelen'){const agg={};(dbData||[]).filter(x=>x.onderdelen&&x.onderdelen.length).forEach(x=>{(x.onderdelen||[]).forEach(o=>{if(!agg[o.naam])agg[o.naam]={naam:o.naam,nr:o.nr||'',aantal:0,totaal:0};agg[o.naam].aantal+=(o.aantal||1);agg[o.naam].totaal+=(o.totaal||0);});});doc.autoTable({head:[['Onderdeel','Artikelnr.','Totaal aantal','Totale kosten']],body:Object.values(agg).sort((a,b)=>b.totaal-a.totaal).map(o=>[o.naam,o.nr||'—',o.aantal,formatEuro(o.totaal)]),startY:28,margin:{left:10,right:10},styles:{fontSize:9,cellPadding:3},headStyles:{fillColor:[30,58,138],textColor:255,fontStyle:'bold'},alternateRowStyles:{fillColor:[248,250,252]},columnStyles:{0:{cellWidth:100},2:{halign:'center'},3:{halign:'right',textColor:[180,83,9],fontStyle:'bold'}}});}
-  else{let fn;if(id==='vuurwerk')fn=x=>{const v=(x.cos_remarks||{})['cos_vuurwerk']||(x.cos_remarks||{})[8]||'';return v==='Nee ontbreekt'||v==='Ja aanwezig maar met schade';};if(id==='schade')fn=x=>{const r=(x.cos_remarks||{})['cos_schade']||(x.cos_remarks||{})[7]||'';return r==='Ja er is schade';};if(id==='roest')fn=x=>{const r=(x.prev_remarks||{})['prev_roest']||'';const v=(x.prev_remarks||{})['prev_vocht']||'';return r==='Ja er is roest'||v==='Ja';};if(id==='accu')fn=x=>x.accu_val&&parseFloat(x.accu_val)<drempel;if(id==='test')fn=x=>{const r=(x.prev_remarks||{})['prev_test']||'';return r==='Mislukt'||r==='Geen testpas';};if(id==='solar')fn=x=>{const isSolar=x.automaat_type==='Solar';return isSolar&&!cosVal(x.cos,{id:'cos_solar'},solarIdx>=0?solarIdx:6);};const gef=(dbData||[]).filter(fn||Boolean).sort((a,b)=>String(b.datum).localeCompare(String(a.datum)));const ek=x=>{if(id==='vuurwerk')return(x.cos_remarks||{})['cos_vuurwerk']||(x.cos_remarks||{})[8]||'';if(id==='schade')return(x.cos_remarks||{})['cos_schade']||(x.cos_remarks||{})[7]||'';if(id==='accu')return(x.accu_val||'')+'V';return x.bijzonderheden||'';};doc.autoTable({head:[['Datum','Automaat','Locatie','Zone','Monteur','Score','Status','Opmerking']],body:gef.map(x=>[x.datum||'—',x.automaatnr||'—',(x.locatie||'—').substring(0,40),x.zone||'—',x.mobilist||'—',(x.pct||0)+'%',(x.status||'ingediend').charAt(0).toUpperCase()+(x.status||'ingediend').slice(1),ek(x).substring(0,30)]),startY:28,margin:{left:10,right:10},styles:{fontSize:8,cellPadding:2.5},headStyles:{fillColor:[30,58,138],textColor:255,fontStyle:'bold'},alternateRowStyles:{fillColor:[248,250,252]},columnStyles:{0:{cellWidth:22,halign:'center'},1:{cellWidth:20,halign:'center',textColor:[30,58,138],fontStyle:'bold'},2:{cellWidth:55},3:{cellWidth:12,halign:'center'},4:{cellWidth:22,halign:'center'},5:{cellWidth:14,halign:'center'},6:{cellWidth:24,halign:'center'}}});}
+  else{let fn;if(id==='vuurwerk')fn=x=>{const v=(x.cos_remarks||{})['cos_vuurwerk']||(x.cos_remarks||{})[8]||'';return v==='Nee ontbreekt'||v==='Ja aanwezig maar met schade';};if(id==='schade')fn=x=>{const r=(x.cos_remarks||{})['cos_schade']||(x.cos_remarks||{})[7]||'';return r==='Ja er is schade';};if(id==='roest')fn=x=>{const r=(x.prev_remarks||{})['prev_roest']||'';const v=(x.prev_remarks||{})['prev_vocht']||'';return r==='Ja er is roest'||v==='Ja';};if(id==='accu')fn=x=>x.accu_val&&parseFloat(x.accu_val)<drempel;if(id==='test')fn=x=>{const r=(x.prev_remarks||{})['prev_test']||'';return r==='Mislukt'||r==='Geen testpas';};if(id==='solar')fn=x=>{const isSolar=x.automaat_type==='Solar';return isSolar&&!cosVal(x.cos,{id:'cos_solar'},solarIdx>=0?solarIdx:6);};if(id==='accucorrosie')fn=x=>{return(x.prev_remarks||{})['prev_accu1']==='Ja er is corrosie';};if(id==='hydrokorrels')fn=x=>{return(x.prev_remarks||{})['prev_hydro_korrels']==='Nee';};if(id==='solarlaadt')fn=x=>{return(x.prev_remarks||{})['prev_solar']==='Nee';};if(id==='bovenslot')fn=x=>{return(x.prev_remarks||{})['prev_bovenslot']==='Nee';};if(id==='onderslot')fn=x=>{return(x.prev_remarks||{})['prev_onderslot']==='Nee';};if(id==='optimaaccu')fn=x=>{return !!(x.prev_remarks||{})['prev_optima_accu'];};const gef=(dbData||[]).filter(fn||Boolean).sort((a,b)=>String(b.datum).localeCompare(String(a.datum)));const ek=x=>{if(id==='vuurwerk')return(x.cos_remarks||{})['cos_vuurwerk']||(x.cos_remarks||{})[8]||'';if(id==='schade')return(x.cos_remarks||{})['cos_schade']||(x.cos_remarks||{})[7]||'';if(id==='accu')return(x.accu_val||'')+'V';return x.bijzonderheden||'';};doc.autoTable({head:[['Datum','Automaat','Locatie','Zone','Monteur','Score','Status','Opmerking']],body:gef.map(x=>[x.datum||'—',x.automaatnr||'—',(x.locatie||'—').substring(0,40),x.zone||'—',x.mobilist||'—',(x.pct||0)+'%',(x.status||'ingediend').charAt(0).toUpperCase()+(x.status||'ingediend').slice(1),ek(x).substring(0,30)]),startY:28,margin:{left:10,right:10},styles:{fontSize:8,cellPadding:2.5},headStyles:{fillColor:[30,58,138],textColor:255,fontStyle:'bold'},alternateRowStyles:{fillColor:[248,250,252]},columnStyles:{0:{cellWidth:22,halign:'center'},1:{cellWidth:20,halign:'center',textColor:[30,58,138],fontStyle:'bold'},2:{cellWidth:55},3:{cellWidth:12,halign:'center'},4:{cellWidth:22,halign:'center'},5:{cellWidth:14,halign:'center'},6:{cellWidth:24,halign:'center'}}});}
   const pages=doc.internal.getNumberOfPages();for(let i=1;i<=pages;i++){doc.setPage(i);doc.setFontSize(7);doc.setTextColor(148,163,184);doc.text(`CWT S3 Onderhoud · Vertrouwelijk · ${vandaag}`,pw/2,doc.internal.pageSize.getHeight()-4,{align:'center'});}
   doc.save(`CWT_${id}_${new Date().toISOString().split('T')[0]}.pdf`);toast('📄 PDF gedownload');logAudit(userName,userRole,'export',`Widget PDF: ${titels[id]}`);
 }
@@ -3220,7 +3325,7 @@ function updateMijnStatistieken(data){if(!data||!data.length)return;const nu=new
 
 /* ===== NOTITIE ===== */
 function toonNotitieVeld(id){const el=document.getElementById('notitie-form-'+id);if(el)el.style.display=el.style.display==='none'?'block':'none';}
-async function slaNotitieOp(id){const tekst=document.getElementById('notitie-tekst-'+id)?.value||'';try{await sbFetch('rpc/sla_notitie_op',{method:'POST',body:JSON.stringify({p_id:id,p_notitie:tekst})});document.getElementById('notitie-form-'+id).style.display='none';const item=dbData?.find(x=>x.id===id);if(item)item.beheerder_notitie=tekst;toast('💬 Notitie opgeslagen');logAudit(userName,userRole,'notitie',`Notitie toegevoegd aan formulier #${id}`);}catch(e){toast('❌ Opslaan mislukt');}}
+async function slaNotitieOp(id){const tekst=document.getElementById('notitie-tekst-'+id)?.value||'';try{await sbFetch('rpc/sla_notitie_op',{method:'POST',body:JSON.stringify({p_id:id,p_notitie:tekst})});document.getElementById('notitie-form-'+id).style.display='none';const item=dbData?.find(x=>x.id===id);if(item)item.beheerder_notitie=tekst;invalideerCache();toast('💬 Notitie opgeslagen');logAudit(userName,userRole,'notitie',`Notitie toegevoegd aan formulier #${id}`);}catch(e){toast('❌ Opslaan mislukt');}}
 
 /* ===== MEDEWERKER BANNERS ===== */
 async function updateMedewBanners() {
@@ -3251,53 +3356,10 @@ async function updateMedewBanners() {
       banAfk.style.display = 'none';
     }
 
-    // Teruggestuurd banner
-    const teruggest = await sbFetch(`onderhoud?mobilist=ilike.*${encoded}*&status=eq.teruggestuurd&gearchiveerd=eq.false&select=id`).catch(()=>[]);
-    const banTer = document.getElementById('banner-teruggestuurd');
-    const banTerTxt = document.getElementById('banner-teruggestuurd-tekst');
-    if (banTer && teruggest && teruggest.length > 0) {
-      banTerTxt.textContent = `${teruggest.length} formulier${teruggest.length !== 1 ? 'en' : ''} teruggestuurd — aanpassing vereist`;
-      banTer.style.display = 'block';
-    } else if (banTer) {
-      banTer.style.display = 'none';
-    }
   } catch(e) { console.warn('Banners laden mislukt:', e); }
 }
 
 /* ===== TERUGSTUREN ===== */
-function toonTerugstuurVeld(id) {
-  const el = document.getElementById('terugstuur-form-'+id);
-  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
-}
-
-async function bevestigTerugsturen(id) {
-  const reden = document.getElementById('terugstuur-tekst-'+id)?.value?.trim() || '';
-  if (!reden) {
-    toast('⚠️ Vul in wat er ontbreekt of aangepast moet worden');
-    document.getElementById('terugstuur-tekst-'+id)?.focus();
-    return;
-  }
-  try {
-    await sbFetch('rpc/stuur_terug', {method:'POST', body:JSON.stringify({p_id:id, p_reden:reden})});
-    // Update logboek
-    const nu = new Date().toISOString();
-    const record = dbData?.find(x=>x.id===id);
-    const logboek = Array.isArray(record?.logboek) ? [...record.logboek] : [];
-    logboek.push({type:'teruggestuurd', tekst:`Formulier teruggestuurd door ${userName}: ${reden}`, tijd:nu});
-    await sbFetch(`onderhoud?id=eq.${id}`, {method:'PATCH', body:JSON.stringify({logboek})});
-    // Update local data
-    if (record) { record.status = 'teruggestuurd'; record.terugstuur_reden = reden; record.logboek = logboek; }
-    document.getElementById('terugstuur-form-'+id).style.display = 'none';
-    closeDetailPanel();
-    invalideerCache();
-    renderTable();
-    updateKPIs(dbData);
-    filterOpenstaande();
-    updateWidgetSubtitles(dbData);
-    logAudit(userName, userRole, 'formulier teruggestuurd', `Formulier #${id} teruggestuurd: ${reden}`);
-    toast('↩ Formulier teruggestuurd naar monteur');
-  } catch(e) { toast('❌ Mislukt: ' + (e.message||'onbekende fout')); }
-}
 
 
 async function archiveerFormulier(id,archiveer){if(!confirm(archiveer?'Dit formulier archiveren?':'Formulier dearchiveren?'))return;try{await sbFetch('rpc/archiveer_formulier',{method:'POST',body:JSON.stringify({p_id:id,p_archiveer:archiveer})});const item=dbData?.find(x=>x.id===id);if(item)item.gearchiveerd=archiveer;sluitDetail();invalideerCache();toast(archiveer?'📦 Gearchiveerd':'📤 Dearchiveerd');logAudit(userName,userRole,'archief',`Formulier #${id} ${archiveer?'gearchiveerd':'dearchiveerd'}`);}catch(e){toast('❌ Mislukt: '+e.message);}}
@@ -3721,6 +3783,19 @@ async function exportBulkPDF() {
   }
 }
 
+
+/* ===== NIEUWE CHECKLIST WIDGETS ===== */
+function buildAccuCorrosieWidget(){const zoek=(document.getElementById('accucorrosie-search')?.value||'').toLowerCase();const data=(dbData||[]).filter(x=>{const r=(x.prev_remarks||{})['prev_accu1']||'';return r==='Ja er is corrosie'&&(!zoek||(x.automaatnr||'').toLowerCase().includes(zoek)||(x.locatie||'').toLowerCase().includes(zoek));}).sort((a,b)=>String(b.datum).localeCompare(String(a.datum)));const sub=document.getElementById('accucorrosie-subtitle');if(sub)sub.textContent=data.length?`${data.length} formulier${data.length!==1?'en':''} met accu corrosie`:'Geen accu corrosie gevonden';renderWidgetLijst('accucorrosie-lijst',data,x=>`<div style="font-size:11px;color:var(--amber);margin-top:3px;">⚠️ Corrosie op accu geconstateerd</div>`);}
+
+function buildHydroKorrelsWidget(){const zoek=(document.getElementById('hydrokorrels-search')?.value||'').toLowerCase();const data=(dbData||[]).filter(x=>{const r=(x.prev_remarks||{})['prev_hydro_korrels']||'';return r==='Nee'&&(!zoek||(x.automaatnr||'').toLowerCase().includes(zoek)||(x.locatie||'').toLowerCase().includes(zoek));}).sort((a,b)=>String(b.datum).localeCompare(String(a.datum)));const sub=document.getElementById('hydrokorrels-subtitle');if(sub)sub.textContent=data.length?`${data.length} solar automaat${data.length!==1?'en':''} zonder hydro korrels`:'Alle solar automaten hebben hydro korrels';renderWidgetLijst('hydrokorrels-lijst',data,x=>`<div style="font-size:11px;color:var(--red);margin-top:3px;">❌ Geen hydro korrels aanwezig</div>`);}
+
+function buildSolarLaadtWidget(){const zoek=(document.getElementById('solarlaadt-search')?.value||'').toLowerCase();const data=(dbData||[]).filter(x=>{const r=(x.prev_remarks||{})['prev_solar']||'';return r==='Nee'&&(!zoek||(x.automaatnr||'').toLowerCase().includes(zoek)||(x.locatie||'').toLowerCase().includes(zoek));}).sort((a,b)=>String(b.datum).localeCompare(String(a.datum)));const sub=document.getElementById('solarlaadt-subtitle');if(sub)sub.textContent=data.length?`${data.length} solar automaat${data.length!==1?'en':''} laadt niet`:'Alle solar automaten laden correct';renderWidgetLijst('solarlaadt-lijst',data,x=>`<div style="font-size:11px;color:var(--red);margin-top:3px;">❌ Accu wordt niet opgeladen</div>`);}
+
+function buildBovenslotWidget(){const zoek=(document.getElementById('bovenslot-search')?.value||'').toLowerCase();const data=(dbData||[]).filter(x=>{const r=(x.prev_remarks||{})['prev_bovenslot']||'';return r==='Nee'&&(!zoek||(x.automaatnr||'').toLowerCase().includes(zoek)||(x.locatie||'').toLowerCase().includes(zoek));}).sort((a,b)=>String(b.datum).localeCompare(String(a.datum)));const sub=document.getElementById('bovenslot-subtitle');if(sub)sub.textContent=data.length?`${data.length} automaat${data.length!==1?'en':''} met defect bovenslot`:'Alle bovensloten zijn in orde';renderWidgetLijst('bovenslot-lijst',data,x=>`<div style="font-size:11px;color:var(--red);margin-top:3px;">🔒 Bovenslot niet in orde</div>`);}
+
+function buildOnderslotWidget(){const zoek=(document.getElementById('onderslot-search')?.value||'').toLowerCase();const data=(dbData||[]).filter(x=>{const r=(x.prev_remarks||{})['prev_onderslot']||'';return r==='Nee'&&(!zoek||(x.automaatnr||'').toLowerCase().includes(zoek)||(x.locatie||'').toLowerCase().includes(zoek));}).sort((a,b)=>String(b.datum).localeCompare(String(a.datum)));const sub=document.getElementById('onderslot-subtitle');if(sub)sub.textContent=data.length?`${data.length} automaat${data.length!==1?'en':''} met defect onderslot`:'Alle ondersloten zijn in orde';renderWidgetLijst('onderslot-lijst',data,x=>`<div style="font-size:11px;color:var(--red);margin-top:3px;">🔐 Onderslot niet in orde</div>`);}
+
+function buildOptimaAccuWidget(){const zoek=(document.getElementById('optimaaccu-search')?.value||'').toLowerCase();const data=(dbData||[]).filter(x=>{const r=(x.prev_remarks||{})['prev_optima_accu']||'';return r&&(!zoek||(x.automaatnr||'').toLowerCase().includes(zoek)||(x.locatie||'').toLowerCase().includes(zoek));}).sort((a,b)=>String(b.datum).localeCompare(String(a.datum)));const een=data.filter(x=>(x.prev_remarks||{})['prev_optima_accu']==='1x Accu').length;const twee=data.filter(x=>(x.prev_remarks||{})['prev_optima_accu']==='2x Accu').length;const sub=document.getElementById('optimaaccu-subtitle');if(sub)sub.textContent=`${data.length} metingen · ${een}x 1 accu · ${twee}x 2 accu's`;renderWidgetLijst('optimaaccu-lijst',data,x=>{const r=(x.prev_remarks||{})['prev_optima_accu']||'';return`<div style="font-size:11px;color:var(--accent);margin-top:3px;">⚡ ${r}</div>`;});}
 
 async function buildGpsWidget() {
   const el = document.getElementById('gps-inhoud');
@@ -5451,16 +5526,12 @@ async function openDetail(id){
     html+=`<div class="status-btn-row">`;
     if(xStatus!=='goedgekeurd') html+=`<button class="btn btn-goedkeur" onclick="setStatus(${x.id},'goedgekeurd')">✅ Goedkeuren</button>`;
     if(xStatus!=='afgekeurd')  html+=`<button class="btn btn-afkeur"   onclick="showAfkeurBox(${x.id})">❌ Afkeuren</button>`;
-    if(xStatus==='afgekeurd'||xStatus==='goedgekeurd') html+=`<button class="btn btn-heropenen" onclick="setStatus(${x.id},'heropend')">🔄 Heropenen</button>`;
     html+=`<button class="btn btn-ghost" onclick="toonNotitieVeld(${x.id})" style="font-size:12px;">💬 Notitie</button>`;
-    html+=`<button class="btn btn-ghost" onclick="toonTerugstuurVeld(${x.id})" style="font-size:12px;color:var(--amber);">↩ Terugsturen</button>`;
     html+=`<button class="btn btn-ghost" onclick="archiveerFormulier(${x.id},${!x.gearchiveerd})" style="font-size:12px;">${x.gearchiveerd?'📤 Dearchiveren':'📦 Archiveren'}</button>`;
     html+=`</div>`;
     html+=`<div id="afkeur-form-${x.id}" style="display:none;"><div class="afkeur-box"><div class="afkeur-label">Reden voor afkeuring</div><textarea class="afkeur-textarea" id="afkeur-reden-${x.id}" placeholder="Beschrijf waarom dit formulier wordt afgekeurd..."></textarea><div style="display:flex;gap:8px;margin-top:10px;"><button class="btn btn-afkeur" onclick="submitAfkeur(${x.id})">❌ Bevestig afkeuring</button><button class="btn btn-ghost" onclick="document.getElementById('afkeur-form-${x.id}').style.display='none'">Annuleer</button></div></div></div>`;
     html+=`<div id="notitie-form-${x.id}" style="display:none;padding:12px 20px;border-top:1px solid var(--border);"><div style="font-size:12px;color:var(--text3);margin-bottom:6px;">💬 Beheerder notitie</div><textarea style="width:100%;min-height:80px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;resize:vertical;" id="notitie-tekst-${x.id}" placeholder="Voeg een notitie toe...">${x.beheerder_notitie||''}</textarea><div style="display:flex;gap:8px;margin-top:8px;"><button class="btn btn-primary" onclick="slaNotitieOp(${x.id})" style="font-size:12px;">💾 Opslaan</button><button class="btn btn-ghost" onclick="document.getElementById('notitie-form-${x.id}').style.display='none'" style="font-size:12px;">Annuleer</button></div></div>`;
-    html+=`<div id="terugstuur-form-${x.id}" style="display:none;padding:12px 20px;border-top:1px solid var(--amber-bg);background:var(--amber-bg);"><div style="font-size:12px;color:var(--amber);font-weight:600;margin-bottom:6px;">↩ Terugsturen naar monteur</div><div style="font-size:12px;color:var(--text3);margin-bottom:8px;">Verplicht: omschrijf wat er ontbreekt of aangepast moet worden.</div><textarea style="width:100%;min-height:100px;padding:8px 12px;background:var(--surface);border:1px solid var(--amber);border-radius:8px;color:var(--text);font-size:13px;resize:vertical;" id="terugstuur-tekst-${x.id}" placeholder="Bijv: Foto van het display ontbreekt. Testbetaling niet ingevuld..."></textarea><div style="display:flex;gap:8px;margin-top:8px;"><button class="btn btn-primary" onclick="bevestigTerugsturen(${x.id})" style="font-size:12px;background:var(--amber);">↩ Terugsturen</button><button class="btn btn-ghost" onclick="document.getElementById('terugstuur-form-${x.id}').style.display='none'" style="font-size:12px;">Annuleer</button></div></div>`;
     if(x.beheerder_notitie) html+=`<div style="padding:10px 20px;background:var(--accent-glow);border-left:3px solid var(--accent);margin:0 0 4px 0;font-size:13px;"><span style="font-weight:600;color:var(--accent);">💬 Notitie:</span> ${x.beheerder_notitie}</div>`;
-    if(x.terugstuur_reden) html+=`<div style="padding:10px 20px;background:var(--amber-bg);border-left:3px solid var(--amber);margin:0 0 4px 0;font-size:13px;"><span style="font-weight:600;color:var(--amber);">↩ Teruggestuurd:</span> ${x.terugstuur_reden}</div>`;
   }
 
   const cos=x.cos||{},cosR=x.cos_remarks||{};
