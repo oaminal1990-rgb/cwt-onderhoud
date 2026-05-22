@@ -3456,31 +3456,80 @@ async function exportBulkPDF() {
         const cosObj = typeof x.cos==='string'?JSON.parse(x.cos||'{}'):x.cos||{};
         const prevObj = typeof x.prev==='string'?JSON.parse(x.prev||'{}'):x.prev||{};
 
-        const cosRows = cosItems.filter(item=>typeof item==='object'&&item.id&&!item.toon_als_waarde&&isZichtbaar(item,cosObj,prevObj,cosR,prevR)).map(item=>{
-          const val = cosVal(cosObj,item,cosItems.indexOf(item));
-          const rem = cosRem(cosR,item,cosItems.indexOf(item));
-          return [item.label||'', val?'✓':'✗', rem||''];
-        });
-        const prevRows = prevItems.filter(item=>typeof item==='object'&&item.id&&isZichtbaar(item,cosObj,prevObj,cosR,prevR)).map(item=>{
-          const val = cosVal(prevObj,item,prevItems.indexOf(item));
-          const rem = cosRem(prevR,item,prevItems.indexOf(item));
-          const isTarief = item.id==='prev_tarief_display';
-          return [item.label||'', val?'✓':'✗', isTarief&&rem?'€'+parseFloat(rem).toFixed(2)+'/uur':rem||''];
-        });
+        // ── COSMETISCH ──────────────────────────────────
+        const cosItems2 = cosItems.filter(item=>typeof item==='object'&&item.id&&!item.toon_als_waarde&&isZichtbaar(item,cosObj,prevObj,cosR,prevR));
+        const prevItems2 = prevItems.filter(item=>typeof item==='object'&&item.id&&isZichtbaar(item,cosObj,prevObj,cosR,prevR));
 
-        if (cosRows.length || prevRows.length) {
-          if (y > ph-60) { doc.addPage(); y=14; }
-          doc.autoTable({
-            head:[['Controlepunt','','Opmerking']],
-            body: [...cosRows,...prevRows],
-            startY: y, margin:{left:8,right:8},
-            styles:{fontSize:7.5,cellPadding:1.8},
-            headStyles:{fillColor:[248,250,252],textColor:[100,116,139],fontSize:7,fontStyle:'bold'},
-            columnStyles:{1:{cellWidth:8,halign:'center',fontStyle:'bold'},2:{cellWidth:55}},
-            didParseCell(d){if(d.column.index===1&&d.section==='body'){d.cell.styles.textColor=d.cell.raw==='✓'?[22,163,74]:[220,38,38];}},
+        const tekenChecklijst = (items, prefix, dataObj, remarkObj, sectieLabel, startY) => {
+          if (!items.length) return startY;
+          let cy = startY;
+          if (cy > ph-50) { doc.addPage(); cy=14; }
+
+          // Sectie header
+          doc.setFillColor(30,58,138);
+          doc.roundedRect(8, cy, pw-16, 9, 1.5, 1.5, 'F');
+          doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(255,255,255);
+          const gedaan = items.filter((item,i)=>cosVal(dataObj,item,items.indexOf(item))).length;
+          doc.text(sectieLabel, 12, cy+6.2);
+          doc.text(`${gedaan}/${items.length} afgevinkt`, pw-10, cy+6.2, {align:'right'});
+          cy += 12;
+
+          // Items per rij van 2 kolommen
+          const kolB = (pw-20)/2;
+          let col = 0;
+          let rijY = cy;
+
+          items.forEach((item, i) => {
+            const label = item.label || '';
+            const val = cosVal(dataObj, item, items.indexOf(item));
+            const rem = cosRem(remarkObj, item, items.indexOf(item));
+            const isTarief = item.id === 'prev_tarief_display';
+            const remTxt = isTarief && rem ? `€${parseFloat(rem).toFixed(2)}/uur` : rem;
+
+            if (rijY + 11 > ph - 10) {
+              doc.addPage();
+              rijY = 14;
+              col = 0;
+            }
+
+            const fx = col === 0 ? 8 : 8 + kolB + 4;
+
+            // Achtergrond voor dit item
+            if(val){doc.setFillColor(240,253,244);}else{doc.setFillColor(254,242,242);}
+            doc.roundedRect(fx, rijY, kolB, 10, 1, 1, 'F');
+
+            // Gekleurde indicator balk links
+            if(val){doc.setFillColor(22,163,74);}else{doc.setFillColor(220,38,38);}
+            doc.roundedRect(fx, rijY, 3, 10, 0.5, 0.5, 'F');
+
+            // Symbool
+            doc.setFont('helvetica','bold'); doc.setFontSize(10);
+            if(val){doc.setTextColor(22,163,74);}else{doc.setTextColor(220,38,38);}
+            doc.text(val ? '✓' : '✗', fx+5.5, rijY+6.8);
+
+            // Label
+            doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+            if(val){doc.setTextColor(15,118,56);}else{doc.setTextColor(153,27,27);}
+            const labelTekst = label.substring(0, remTxt ? 28 : 38);
+            doc.text(labelTekst, fx+11, rijY+4.5);
+
+            // Opmerking (grijs, klein)
+            if (remTxt) {
+              doc.setFont('helvetica','italic'); doc.setFontSize(6.5);
+              doc.setTextColor(100,116,139);
+              doc.text(remTxt.substring(0,35), fx+11, rijY+8.5);
+            }
+
+            if (col === 1) { rijY += 12; col = 0; }
+            else col = 1;
           });
-          y = doc.lastAutoTable.finalY + 4;
-        }
+
+          if (col === 1) rijY += 12;
+          return rijY + 3;
+        };
+
+        y = tekenChecklijst(cosItems2, 'cos', cosObj, cosR, '🔍 Cosmetisch onderhoud', y);
+        y = tekenChecklijst(prevItems2, 'prev', prevObj, prevR, '🔧 Preventief onderhoud', y);
       }
 
       // Foto's
