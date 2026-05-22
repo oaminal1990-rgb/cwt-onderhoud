@@ -471,6 +471,41 @@ select.filter-input option{background:var(--surface2);}
 
 <div id="page-form" class="page active">
   <div class="main" style="max-width:880px;">
+
+    <!-- MEDEWERKER BANNERS -->
+    <div id="banner-planning" style="display:none;background:var(--accent-glow);border:1px solid var(--accent);border-radius:10px;padding:12px 16px;margin-bottom:12px;cursor:pointer;display:none;" onclick="switchTab('plan-mijn')">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:20px;">📅</span>
+        <div>
+          <div style="font-weight:700;font-size:14px;color:var(--accent);" id="banner-planning-tekst">Je hebt vandaag beurten gepland</div>
+          <div style="font-size:12px;color:var(--text3);">Klik hier om je planning te bekijken</div>
+        </div>
+        <span style="margin-left:auto;font-size:18px;color:var(--accent);">→</span>
+      </div>
+    </div>
+
+    <div id="banner-afgekeurd" style="display:none;background:var(--red-bg);border:1px solid rgba(239,68,68,.4);border-radius:10px;padding:12px 16px;margin-bottom:12px;cursor:pointer;" onclick="switchTab('mijn')">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:20px;">❌</span>
+        <div>
+          <div style="font-weight:700;font-size:14px;color:var(--red);" id="banner-afgekeurd-tekst">Je hebt afgekeurde formulieren</div>
+          <div style="font-size:12px;color:var(--text3);">Klik hier om ze te bekijken</div>
+        </div>
+        <span style="margin-left:auto;font-size:18px;color:var(--red);">→</span>
+      </div>
+    </div>
+
+    <div id="banner-teruggestuurd" style="display:none;background:var(--amber-bg);border:1px solid rgba(245,158,11,.4);border-radius:10px;padding:12px 16px;margin-bottom:12px;cursor:pointer;" onclick="switchTab('mijn')">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:20px;">↩️</span>
+        <div>
+          <div style="font-weight:700;font-size:14px;color:var(--amber);" id="banner-teruggestuurd-tekst">Formulieren teruggestuurd — aanpassen vereist</div>
+          <div style="font-size:12px;color:var(--text3);">Klik hier om te zien wat er ontbreekt</div>
+        </div>
+        <span style="margin-left:auto;font-size:18px;color:var(--amber);">→</span>
+      </div>
+    </div>
+
     <div class="steps">
       <div class="step active" id="step1" onclick="goStep(1)"><div class="step-num">1</div><span class="step-label">Algemeen</span></div>
       <div class="step" id="step2" onclick="goStep(2)"><div class="step-num">2</div><span class="step-label">Cosmetisch</span></div>
@@ -1920,7 +1955,7 @@ function isZichtbaar(item, cosData, prevData, cosRem, prevRem) {
 async function sbFetch(path,options={}){const res=await fetch(SB_URL+'/rest/v1/'+path,{headers:HEADERS,...options});if(!res.ok){const err=await res.text();throw new Error(err);}return res.status===204?null:res.json();}
 
 // Kolommen voor de lijst/tabel (licht — zonder fotos/logboek)
-const COLS_LIJST = 'id,datum,tijdstip,automaatnr,mobilist,locatie,zone,pct,status,afkeur_reden,totaal_kosten,onderdelen,kwitantie,bijzonderheden,accu_val,cos,prev,cos_remarks,prev_remarks,graffiti_doorgegeven,graffiti_doorgegeven_door,automaat_type,gearchiveerd,beheerder_notitie,gps_lat,gps_lng,gps_nauwkeurigheid,gps_afstand,gps_status,created_at';
+const COLS_LIJST = 'id,datum,tijdstip,automaatnr,mobilist,locatie,zone,pct,status,afkeur_reden,terugstuur_reden,totaal_kosten,onderdelen,kwitantie,bijzonderheden,accu_val,cos,prev,cos_remarks,prev_remarks,graffiti_doorgegeven,graffiti_doorgegeven_door,automaat_type,gearchiveerd,beheerder_notitie,gps_lat,gps_lng,gps_nauwkeurigheid,gps_afstand,gps_status,created_at,logboek';
 // Kolommen voor detail panel (alles inclusief fotos en logboek)
 const COLS_DETAIL = '*';
 
@@ -3187,7 +3222,84 @@ function updateMijnStatistieken(data){if(!data||!data.length)return;const nu=new
 function toonNotitieVeld(id){const el=document.getElementById('notitie-form-'+id);if(el)el.style.display=el.style.display==='none'?'block':'none';}
 async function slaNotitieOp(id){const tekst=document.getElementById('notitie-tekst-'+id)?.value||'';try{await sbFetch('rpc/sla_notitie_op',{method:'POST',body:JSON.stringify({p_id:id,p_notitie:tekst})});document.getElementById('notitie-form-'+id).style.display='none';const item=dbData?.find(x=>x.id===id);if(item)item.beheerder_notitie=tekst;toast('💬 Notitie opgeslagen');logAudit(userName,userRole,'notitie',`Notitie toegevoegd aan formulier #${id}`);}catch(e){toast('❌ Opslaan mislukt');}}
 
-/* ===== ARCHIVEREN ===== */
+/* ===== MEDEWERKER BANNERS ===== */
+async function updateMedewBanners() {
+  if (userRole !== 'medewerker') return;
+  try {
+    const vandaag = lokaleDatum();
+    const encoded = encodeURIComponent(userName);
+
+    // Planning banner
+    const planning = await sbFetch(`planning?monteur=eq.${encoded}&datum=eq.${vandaag}&status=eq.gepland&select=id`).catch(()=>[]);
+    const banPlan = document.getElementById('banner-planning');
+    const banPlanTxt = document.getElementById('banner-planning-tekst');
+    if (banPlan && planning && planning.length > 0) {
+      banPlanTxt.textContent = `Je hebt vandaag ${planning.length} beurt${planning.length !== 1 ? 'en' : ''} gepland`;
+      banPlan.style.display = 'block';
+    } else if (banPlan) {
+      banPlan.style.display = 'none';
+    }
+
+    // Afgekeurd banner
+    const afgekeurd = await sbFetch(`onderhoud?mobilist=ilike.*${encoded}*&status=eq.afgekeurd&gearchiveerd=eq.false&select=id`).catch(()=>[]);
+    const banAfk = document.getElementById('banner-afgekeurd');
+    const banAfkTxt = document.getElementById('banner-afgekeurd-tekst');
+    if (banAfk && afgekeurd && afgekeurd.length > 0) {
+      banAfkTxt.textContent = `Je hebt ${afgekeurd.length} afgekeurd${afgekeurd.length !== 1 ? 'e' : ''} formulier${afgekeurd.length !== 1 ? 'en' : ''}`;
+      banAfk.style.display = 'block';
+    } else if (banAfk) {
+      banAfk.style.display = 'none';
+    }
+
+    // Teruggestuurd banner
+    const teruggest = await sbFetch(`onderhoud?mobilist=ilike.*${encoded}*&status=eq.teruggestuurd&gearchiveerd=eq.false&select=id`).catch(()=>[]);
+    const banTer = document.getElementById('banner-teruggestuurd');
+    const banTerTxt = document.getElementById('banner-teruggestuurd-tekst');
+    if (banTer && teruggest && teruggest.length > 0) {
+      banTerTxt.textContent = `${teruggest.length} formulier${teruggest.length !== 1 ? 'en' : ''} teruggestuurd — aanpassing vereist`;
+      banTer.style.display = 'block';
+    } else if (banTer) {
+      banTer.style.display = 'none';
+    }
+  } catch(e) { console.warn('Banners laden mislukt:', e); }
+}
+
+/* ===== TERUGSTUREN ===== */
+function toonTerugstuurVeld(id) {
+  const el = document.getElementById('terugstuur-form-'+id);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+async function bevestigTerugsturen(id) {
+  const reden = document.getElementById('terugstuur-tekst-'+id)?.value?.trim() || '';
+  if (!reden) {
+    toast('⚠️ Vul in wat er ontbreekt of aangepast moet worden');
+    document.getElementById('terugstuur-tekst-'+id)?.focus();
+    return;
+  }
+  try {
+    await sbFetch('rpc/stuur_terug', {method:'POST', body:JSON.stringify({p_id:id, p_reden:reden})});
+    // Update logboek
+    const nu = new Date().toISOString();
+    const record = dbData?.find(x=>x.id===id);
+    const logboek = Array.isArray(record?.logboek) ? [...record.logboek] : [];
+    logboek.push({type:'teruggestuurd', tekst:`Formulier teruggestuurd door ${userName}: ${reden}`, tijd:nu});
+    await sbFetch(`onderhoud?id=eq.${id}`, {method:'PATCH', body:JSON.stringify({logboek})});
+    // Update local data
+    if (record) { record.status = 'teruggestuurd'; record.terugstuur_reden = reden; record.logboek = logboek; }
+    document.getElementById('terugstuur-form-'+id).style.display = 'none';
+    closeDetailPanel();
+    invalideerCache();
+    renderTable();
+    updateKPIs(dbData);
+    filterOpenstaande();
+    updateWidgetSubtitles(dbData);
+    logAudit(userName, userRole, 'formulier teruggestuurd', `Formulier #${id} teruggestuurd: ${reden}`);
+    toast('↩ Formulier teruggestuurd naar monteur');
+  } catch(e) { toast('❌ Mislukt: ' + (e.message||'onbekende fout')); }
+}
+
+
 async function archiveerFormulier(id,archiveer){if(!confirm(archiveer?'Dit formulier archiveren?':'Formulier dearchiveren?'))return;try{await sbFetch('rpc/archiveer_formulier',{method:'POST',body:JSON.stringify({p_id:id,p_archiveer:archiveer})});const item=dbData?.find(x=>x.id===id);if(item)item.gearchiveerd=archiveer;sluitDetail();invalideerCache();toast(archiveer?'📦 Gearchiveerd':'📤 Dearchiveerd');logAudit(userName,userRole,'archief',`Formulier #${id} ${archiveer?'gearchiveerd':'dearchiveerd'}`);}catch(e){toast('❌ Mislukt: '+e.message);}}
 async function renderArchief(){const el=document.getElementById('archief-lijst');const cnt=document.getElementById('archief-count');if(!el)return;el.innerHTML=`<div style="padding:20px;text-align:center;color:var(--text3);"><span class="spinner"></span> Laden...</div>`;try{const data=await sbFetch('onderhoud?gearchiveerd=eq.true&order=datum.desc&select=id,datum,automaatnr,locatie,zone,mobilist,pct,status');if(!Array.isArray(data)||!data.length){el.innerHTML=`<div class="plan-empty">Geen gearchiveerde formulieren</div>`;if(cnt)cnt.textContent='Archief leeg';return;}if(cnt)cnt.textContent=data.length+' gearchiveerde formulieren';archiefData=data;filterArchief();}catch(e){el.innerHTML=`<div class="plan-empty" style="color:var(--red);">❌ ${e.message}</div>`;}}
 let archiefData=[];
@@ -3429,8 +3541,24 @@ async function exportBulkPDF() {
 
       let y = doc.lastAutoTable.finalY + 4;
 
+      // Beheerder notitie — prominent boven bijzonderheden
+      if (x.beheerder_notitie) {
+        if (y > ph-30) { doc.addPage(); y=14; }
+        doc.setFillColor(239,246,255);
+        doc.roundedRect(8, y, pw-16, 12, 1, 1, 'F');
+        doc.setDrawColor(30,58,138); doc.setLineWidth(0.4);
+        doc.roundedRect(8, y, pw-16, 12, 1, 1, 'S');
+        doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(30,58,138);
+        doc.text('Notitie beheerder:', 12, y+5);
+        doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(30,41,59);
+        const notLines = doc.splitTextToSize(x.beheerder_notitie, pw-55);
+        doc.text(notLines, 46, y+5);
+        y += notLines.length > 1 ? 8 + notLines.length*3.5 : 15;
+      }
+
       // Bijzonderheden
       if (x.bijzonderheden) {
+        if (y > ph-25) { doc.addPage(); y=14; }
         doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(100,116,139);
         doc.text('BIJZONDERHEDEN', 8, y+4); y+=7;
         doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(30,41,59);
@@ -3438,15 +3566,25 @@ async function exportBulkPDF() {
         doc.text(bLines, 8, y); y += bLines.length*4+4;
       }
 
-      // Beheerder notitie
-      if (x.beheerder_notitie) {
-        doc.setFillColor(239,246,255);
-        doc.roundedRect(8, y, pw-16, 10, 1, 1, 'F');
-        doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(30,58,138);
-        doc.text('💬 Notitie beheerder: ', 11, y+6.5);
-        doc.setFont('helvetica','normal'); doc.setTextColor(30,41,59);
-        doc.text(x.beheerder_notitie.substring(0,80), 42, y+6.5);
-        y += 14;
+      // Logboek
+      const logboek = Array.isArray(x.logboek) ? x.logboek : [];
+      if (logboek.length > 0) {
+        if (y > ph-30) { doc.addPage(); y=14; }
+        doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(100,116,139);
+        doc.text('LOGBOEK', 8, y+4); y+=8;
+        logboek.forEach(entry => {
+          if (y > ph-10) { doc.addPage(); y=14; }
+          const tijdStr = entry.tijd ? new Date(entry.tijd).toLocaleString('nl-NL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+          const typeKleur = entry.type==='goedgekeurd'?[22,163,74]:entry.type==='afgekeurd'?[220,38,38]:entry.type==='ingediend'?[30,58,138]:[100,116,139];
+          doc.setFillColor(...typeKleur);
+          doc.circle(11, y+2, 1.5, 'F');
+          doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(100,116,139);
+          doc.text(tijdStr, 15, y+3.5);
+          doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(30,41,59);
+          doc.text((entry.tekst||'').replace(/[^\x00-\x7F]/g,'').substring(0,85), 52, y+3.5);
+          y += 6;
+        });
+        y += 2;
       }
 
       // Checklist samenvatting (cos + prev)
@@ -5315,11 +5453,14 @@ async function openDetail(id){
     if(xStatus!=='afgekeurd')  html+=`<button class="btn btn-afkeur"   onclick="showAfkeurBox(${x.id})">❌ Afkeuren</button>`;
     if(xStatus==='afgekeurd'||xStatus==='goedgekeurd') html+=`<button class="btn btn-heropenen" onclick="setStatus(${x.id},'heropend')">🔄 Heropenen</button>`;
     html+=`<button class="btn btn-ghost" onclick="toonNotitieVeld(${x.id})" style="font-size:12px;">💬 Notitie</button>`;
+    html+=`<button class="btn btn-ghost" onclick="toonTerugstuurVeld(${x.id})" style="font-size:12px;color:var(--amber);">↩ Terugsturen</button>`;
     html+=`<button class="btn btn-ghost" onclick="archiveerFormulier(${x.id},${!x.gearchiveerd})" style="font-size:12px;">${x.gearchiveerd?'📤 Dearchiveren':'📦 Archiveren'}</button>`;
     html+=`</div>`;
     html+=`<div id="afkeur-form-${x.id}" style="display:none;"><div class="afkeur-box"><div class="afkeur-label">Reden voor afkeuring</div><textarea class="afkeur-textarea" id="afkeur-reden-${x.id}" placeholder="Beschrijf waarom dit formulier wordt afgekeurd..."></textarea><div style="display:flex;gap:8px;margin-top:10px;"><button class="btn btn-afkeur" onclick="submitAfkeur(${x.id})">❌ Bevestig afkeuring</button><button class="btn btn-ghost" onclick="document.getElementById('afkeur-form-${x.id}').style.display='none'">Annuleer</button></div></div></div>`;
     html+=`<div id="notitie-form-${x.id}" style="display:none;padding:12px 20px;border-top:1px solid var(--border);"><div style="font-size:12px;color:var(--text3);margin-bottom:6px;">💬 Beheerder notitie</div><textarea style="width:100%;min-height:80px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;resize:vertical;" id="notitie-tekst-${x.id}" placeholder="Voeg een notitie toe...">${x.beheerder_notitie||''}</textarea><div style="display:flex;gap:8px;margin-top:8px;"><button class="btn btn-primary" onclick="slaNotitieOp(${x.id})" style="font-size:12px;">💾 Opslaan</button><button class="btn btn-ghost" onclick="document.getElementById('notitie-form-${x.id}').style.display='none'" style="font-size:12px;">Annuleer</button></div></div>`;
+    html+=`<div id="terugstuur-form-${x.id}" style="display:none;padding:12px 20px;border-top:1px solid var(--amber-bg);background:var(--amber-bg);"><div style="font-size:12px;color:var(--amber);font-weight:600;margin-bottom:6px;">↩ Terugsturen naar monteur</div><div style="font-size:12px;color:var(--text3);margin-bottom:8px;">Verplicht: omschrijf wat er ontbreekt of aangepast moet worden.</div><textarea style="width:100%;min-height:100px;padding:8px 12px;background:var(--surface);border:1px solid var(--amber);border-radius:8px;color:var(--text);font-size:13px;resize:vertical;" id="terugstuur-tekst-${x.id}" placeholder="Bijv: Foto van het display ontbreekt. Testbetaling niet ingevuld..."></textarea><div style="display:flex;gap:8px;margin-top:8px;"><button class="btn btn-primary" onclick="bevestigTerugsturen(${x.id})" style="font-size:12px;background:var(--amber);">↩ Terugsturen</button><button class="btn btn-ghost" onclick="document.getElementById('terugstuur-form-${x.id}').style.display='none'" style="font-size:12px;">Annuleer</button></div></div>`;
     if(x.beheerder_notitie) html+=`<div style="padding:10px 20px;background:var(--accent-glow);border-left:3px solid var(--accent);margin:0 0 4px 0;font-size:13px;"><span style="font-weight:600;color:var(--accent);">💬 Notitie:</span> ${x.beheerder_notitie}</div>`;
+    if(x.terugstuur_reden) html+=`<div style="padding:10px 20px;background:var(--amber-bg);border-left:3px solid var(--amber);margin:0 0 4px 0;font-size:13px;"><span style="font-weight:600;color:var(--amber);">↩ Teruggestuurd:</span> ${x.terugstuur_reden}</div>`;
   }
 
   const cos=x.cos||{},cosR=x.cos_remarks||{};
@@ -7338,6 +7479,7 @@ function finishLogin() {
     document.getElementById('tab-mijn').style.display = '';
     document.getElementById('tab-plan-mijn').style.display = '';
     document.querySelector('.logo').innerHTML = `<div class="logo-badge">CWT</div>S3 Onderhoud &nbsp;<span style="font-size:12px;color:var(--text3);font-weight:400;">— ${userName}</span><span id="db-dot" class="db-dot"></span>`;
+    setTimeout(updateMedewBanners, 800);
   }
   checkDB();
 }
