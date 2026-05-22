@@ -2517,7 +2517,35 @@ document.getElementById('btn-next').className=currentStep===4?'btn btn-success':
 if(currentStep===2){await laadChecklistItems();buildChecks(cosItems,'cos-checks','cos','cos-txt','cos-bar',cosItems.length);}
 if(currentStep===3){await laadChecklistItems();buildChecks(prevItems,'prev-checks','prev','prev-txt','prev-bar',prevItems.length);}
 if(currentStep===4){updateSummary();renderOnderdelenCategorieen();renderOnderdelenGeselecteerd();updateOnderdelenTotaal();if(!privacyGetoond)setTimeout(toonPrivacyModal,300);}window.scrollTo({top:0,behavior:'smooth'});}
-function handleFotos(input) {
+function comprimeerFoto(file, maxBreedte=1280, maxHoogte=1280, kwaliteit=0.75) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        // Bereken nieuwe afmetingen (behoud verhouding)
+        let b = img.width, h = img.height;
+        if (b > maxBreedte || h > maxHoogte) {
+          const ratio = Math.min(maxBreedte / b, maxHoogte / h);
+          b = Math.round(b * ratio);
+          h = Math.round(h * ratio);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = b; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, b, h);
+        const gecomprimeerd = canvas.toDataURL('image/jpeg', kwaliteit);
+        resolve(gecomprimeerd);
+      };
+      img.onerror = () => resolve(e.target.result); // Fallback origineel
+      img.src = e.target.result;
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleFotos(input) {
   const files = Array.from(input.files);
   if (!files.length) return;
   const MAX = 10;
@@ -2525,15 +2553,19 @@ function handleFotos(input) {
   if (remaining <= 0) { toast('⚠️ Maximum van 10 foto\'s bereikt'); return; }
   const toLoad = files.slice(0, remaining);
   if (files.length > remaining) toast(`⚠️ Maximaal ${MAX} foto's — ${files.length - remaining} overgeslagen`);
-  toLoad.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      state.fotos.push({base64: e.target.result, naam: file.name});
+  toast('⏳ Foto\'s verwerken...');
+  for (const file of toLoad) {
+    const gecomprimeerd = await comprimeerFoto(file);
+    if (gecomprimeerd) {
+      const origKB = Math.round(file.size / 1024);
+      const nieuwKB = Math.round(gecomprimeerd.length * 0.75 / 1024);
+      console.log(`Foto: ${file.name} — ${origKB} KB → ${nieuwKB} KB`);
+      state.fotos.push({ base64: gecomprimeerd, naam: file.name });
       renderFotoGallery();
-    };
-    reader.readAsDataURL(file);
-  });
+    }
+  }
   input.value = '';
+  toast(`✅ ${toLoad.length} foto${toLoad.length !== 1 ? '\'s' : ''} toegevoegd`);
 }
 
 function removeFotoIdx(idx) {
