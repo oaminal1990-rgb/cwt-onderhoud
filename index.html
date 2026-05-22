@@ -2557,7 +2557,7 @@ async function saveForm(){
         invalideerCache();
         mijnData = [];
         newForm();
-        setTimeout(()=>{renderMijn();toast('📋 Nieuw formulier klaar — vul het volgende in');},300);
+        setTimeout(()=>{renderMijn();updateMedewBanners();toast('📋 Nieuw formulier klaar — vul het volgende in');},300);
       }
     },1500);
   }catch(e){
@@ -7561,6 +7561,7 @@ async function renderMijn() {
     renderMijnList(mijnData);
     document.getElementById('mijn-naam-title').textContent = `Formulieren van ${userName}`;
     document.getElementById('mijn-subtitle').textContent = mijnData.length + ' formulier' + (mijnData.length !== 1 ? 'en' : '') + ' gevonden';
+    updateMedewBanners();
   } catch(e) {
     document.getElementById('mijn-subtitle').textContent = '❌ Laden mislukt';
     document.getElementById('mijn-list').innerHTML = `<div style="padding:40px;text-align:center;color:var(--text3);">Fout bij laden.</div>`;
