@@ -463,7 +463,20 @@ select.filter-input option{background:var(--surface2);}
   <button class="btn btn-ghost btn-new-header" onclick="newForm()">+ Nieuw</button>
   <button class="btn btn-ghost btn-vernieuw-header" onclick="vernieuwHuidigTab()" title="Vernieuwen" style="font-size:15px;padding:6px 10px;color:var(--text3);display:none;">↻</button>
   <button class="btn btn-ghost btn-feedback-header" onclick="openFeedbackModal()" title="Feedback" style="font-size:15px;padding:6px 10px;color:var(--text3);display:none;">📢</button>
-  <div id="offline-banner" style="display:none;background:var(--amber-bg);border:1px solid var(--amber);color:var(--amber);font-size:11px;padding:4px 10px;border-radius:6px;font-weight:600;">📶 Offline</div>
+  <div id="update-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff;padding:14px 20px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.3);">
+  <div style="max-width:700px;margin:0 auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;">
+    <span style="font-size:20px;">🔄</span>
+    <div style="flex:1;min-width:200px;">
+      <div style="font-weight:700;font-size:14px;">Nieuwe versie beschikbaar!</div>
+      <div style="font-size:12px;opacity:.9;" id="update-banner-versie">Er is een update — ververs de pagina voor de nieuwste formulieren en functies.</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+      <button onclick="hardRefresh()" style="background:#fff;color:#1e3a8a;border:none;border-radius:8px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;">🔄 Nu verversen</button>
+      <button onclick="document.getElementById('update-banner').style.display='none'" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer;">Later</button>
+    </div>
+  </div>
+</div>
+<div id="offline-banner" style="display:none;background:var(--amber-bg);border:1px solid var(--amber);color:var(--amber);font-size:11px;padding:4px 10px;border-radius:6px;font-weight:600;">📶 Offline</div>
   <button class="btn btn-ghost" id="btn-theme" onclick="toggleTheme()" style="font-size:15px;padding:6px 10px;" title="Light/dark mode">🌙</button>
   <button class="btn btn-ghost" id="btn-uitloggen" onclick="uitloggen()" style="font-size:13px;padding:6px 12px;color:var(--text3);">🚪 <span class="btn-uitloggen-label">Uitloggen</span></button>
 </div>
@@ -2061,6 +2074,7 @@ const COLS_DETAIL = '*';
 let _dbCache = null;
 let _dbCacheTime = 0;
 const CACHE_TTL = 10 * 60 * 1000; // 10 minuten
+const APP_VERSION = '2.6'; // Verhoog dit bij elke update
 
 async function sbGet(f='') {
   // Gebruik cache als minder dan 3 minuten oud en geen extra filter
@@ -3420,6 +3434,41 @@ function gpsStatusBadge(x) {
 function toggleTheme(){const isLight=document.documentElement.getAttribute('data-theme')==='light';document.documentElement.setAttribute('data-theme',isLight?'':'light');document.getElementById('btn-theme').textContent=isLight?'🌙':'☀️';localStorage.setItem('cwt_theme',isLight?'dark':'light');}
 function laadTheme(){const t=localStorage.getItem('cwt_theme');if(t==='light'){document.documentElement.setAttribute('data-theme','light');const b=document.getElementById('btn-theme');if(b)b.textContent='☀️';}}
 
+
+/* ===== VERSIE CHECK & CACHE ===== */
+function controleerVersie() {
+  const opgeslagen = localStorage.getItem('cwt_app_version');
+  if (!opgeslagen) {
+    // Eerste keer — sla op, geen melding
+    localStorage.setItem('cwt_app_version', APP_VERSION);
+    return;
+  }
+  if (opgeslagen !== APP_VERSION) {
+    const banner = document.getElementById('update-banner');
+    const tekst = document.getElementById('update-banner-versie');
+    if (banner) {
+      if (tekst) tekst.textContent = `Versie ${APP_VERSION} beschikbaar (je hebt versie ${opgeslagen}) — ververs voor nieuwste formulieren en functies.`;
+      banner.style.display = 'block';
+      // Schuif content naar beneden zodat banner niet over inhoud valt
+      document.body.style.paddingTop = '70px';
+    }
+  }
+}
+
+function hardRefresh() {
+  // Verwijder alle app-caches en ververs
+  localStorage.removeItem('cwt_app_version');
+  localStorage.removeItem('cwt_gps_drempel');
+  sessionStorage.clear();
+  // Cache leegmaken via reload
+  if ('caches' in window) {
+    caches.keys().then(names => {
+      names.forEach(name => caches.delete(name));
+    });
+  }
+  // Forceer reload zonder cache
+  window.location.reload(true);
+}
 
 /* ===== LOKALE DATUM/TIJD (tijdzone-correct) ===== */
 function lokaleDatum() {
@@ -7654,6 +7703,7 @@ function finishLogin() {
     document.getElementById('tab-plan-mijn').style.display = '';
     document.querySelector('.logo').innerHTML = `<div class="logo-badge">CWT</div>S3 Onderhoud &nbsp;<span style="font-size:12px;color:var(--text3);font-weight:400;">— ${userName}</span><span id="db-dot" class="db-dot"></span>`;
     setTimeout(updateMedewBanners, 800);
+  localStorage.setItem('cwt_app_version', APP_VERSION); // Markeer als bijgewerkt
   }
   checkDB();
 }
@@ -7829,6 +7879,10 @@ document.getElementById('bottom-bar').style.display = 'flex';
 
 // Check of login geblokkeerd is bij pagina laden
 setTimeout(() => checkBlokkering(), 100);
+// Versie check bij laden
+setTimeout(() => controleerVersie(), 500);
+// Sla versie op na succesvolle login
+
 
 // Herstel sessie bij verversing
 (function herstelSessie() {
