@@ -146,7 +146,7 @@
 
 /* ===== PAUZE MODUS =====
    Zet APP_GEPAUZEERD op false en verhoog APP_VERSION om te hervatten */
-const APP_GEPAUZEERD = true;
+const APP_GEPAUZEERD = false;
 const PAUZE_DATUM = "2 juni 2026";
 (function checkPauze() {
   if (!APP_GEPAUZEERD) return;
@@ -211,7 +211,7 @@ const COLS_DETAIL = '*';
 let _dbCache = null;
 let _dbCacheTime = 0;
 const CACHE_TTL = 10 * 60 * 1000; // 10 minuten
-const APP_VERSION = '2.9'; // Verhoog dit bij elke update
+const APP_VERSION = '3.0'; // Verhoog dit bij elke update
 
 async function sbGet(f='') {
   // Gebruik cache als minder dan 3 minuten oud en geen extra filter
