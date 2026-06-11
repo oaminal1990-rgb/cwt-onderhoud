@@ -211,13 +211,13 @@ const COLS_DETAIL = '*';
 let _dbCache = null;
 let _dbCacheTime = 0;
 const CACHE_TTL = 10 * 60 * 1000; // 10 minuten
-const APP_VERSION = '3.1'; // Verhoog dit bij elke update
+const APP_VERSION = '3.2'; // Verhoog dit bij elke update
 
 async function sbGet(f='') {
   // Gebruik cache als minder dan 3 minuten oud en geen extra filter
   if (!f && _dbCache && Date.now() - _dbCacheTime < CACHE_TTL) return _dbCache;
   const data = await sbFetch(`onderhoud?select=${COLS_LIJST}&order=created_at.desc,datum.desc&gearchiveerd=eq.false&${f}`);
-  if (!f) { _dbCache = data; _dbCacheTime = Date.now(); }
+  if (!f) { _dbCache = data; _dbCacheTime = Date.now(); try{ await laadAfhandelingen(); }catch(_){} }
   return data;
 }
 
@@ -1473,7 +1473,62 @@ function updateWidgetSubtitles(data){
 function buildWidget(id){switch(id){case 'vuurwerk':buildVuurwerkWidget();break;case 'schade':buildSchadeWidget();break;case 'roest':buildRoestWidget();break;case 'accu':buildAccuWidget();break;case 'onderdelen':buildOnderdelenWidget();break;case 'test':buildTestWidget();break;case 'solar':buildSolarWidget();break;case 'maand':buildMaandWidget();break;}}
 function filterWidget(id){widgetState[id]=false;buildWidget(id);}
 function vernieuwWidget(id){widgetState[id]=false;toast(`↻ ${id} vernieuwen...`);buildWidget(id);updateWidgetSubtitles(dbData);}
-function renderWidgetLijst(elId,items,extraCol){const el=document.getElementById(elId);if(!el)return;if(!items.length){el.innerHTML='<div class="plan-empty" style="color:var(--green);">✅ Geen meldingen gevonden</div>';return;}el.innerHTML=items.map(x=>`<div style="padding:12px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="openDetail(${x.id})"><div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span style="font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:600;">${x.automaatnr||'—'}</span><span style="font-size:11px;color:var(--text3);">${x.datum||'—'}</span><span style="font-size:11px;color:var(--text3);">${x.mobilist||'—'}</span>${statusBadge(x.status)}</div><div style="font-size:12px;color:var(--text2);margin-top:2px;">${x.locatie||'—'}</div>${extraCol(x)}</div></div>`).join('');}
+/* ===== AFHANDELING: doorgegeven-markering per widget ===== */
+const AFHANDELINGEN = new Set();
+const _widgetToonAfg = {};
+const _widgetCache = {};
+async function laadAfhandelingen(){
+  try{
+    const rows = await sbFetch('afhandelingen?select=onderhoud_id,categorie');
+    AFHANDELINGEN.clear();
+    (rows||[]).forEach(r=>AFHANDELINGEN.add(r.onderhoud_id+':'+r.categorie));
+  }catch(_){}
+}
+function isWidgetDoorgegeven(id,cat){ return AFHANDELINGEN.has(id+':'+cat); }
+function rerenderWidgetLijst(elId){ const c=_widgetCache[elId]; if(c) renderWidgetLijst(elId,c.items,c.extraCol); }
+function toggleWidgetAfgehandeld(cat,elId){ _widgetToonAfg[cat]=!_widgetToonAfg[cat]; rerenderWidgetLijst(elId); }
+async function markeerWidgetDoorgegeven(id,cat,elId){
+  try{
+    await sbFetch('afhandelingen',{method:'POST',body:JSON.stringify({onderhoud_id:id,categorie:cat,doorgegeven_door:(typeof userName!=='undefined'?userName:null)})});
+    AFHANDELINGEN.add(id+':'+cat);
+    rerenderWidgetLijst(elId);
+    toast('✅ Doorgegeven — naar afgehandeld verplaatst');
+    if(typeof logAudit==='function'){ try{ logAudit(userName,userRole,'doorgegeven',`Formulier #${id} (${cat}) gemarkeerd als doorgegeven`); }catch(_){} }
+  }catch(e){ toast('❌ Mislukt: '+(e&&e.message||e)); }
+}
+async function maakWidgetOngedaan(id,cat,elId){
+  try{
+    await sbFetch(`afhandelingen?onderhoud_id=eq.${id}&categorie=eq.${encodeURIComponent(cat)}`,{method:'DELETE'});
+    AFHANDELINGEN.delete(id+':'+cat);
+    rerenderWidgetLijst(elId);
+    toast('↩️ Teruggezet naar openstaand');
+  }catch(e){ toast('❌ Mislukt: '+(e&&e.message||e)); }
+}
+function renderWidgetLijst(elId,items,extraCol){
+  const el=document.getElementById(elId); if(!el) return;
+  const cat = elId.replace(/-lijst$/,'');
+  _widgetCache[elId] = {items, extraCol};
+  if(!items.length){ el.innerHTML='<div class="plan-empty" style="color:var(--green);">✅ Geen meldingen gevonden</div>'; return; }
+  const afg = items.filter(x=>isWidgetDoorgegeven(x.id,cat));
+  const open = items.filter(x=>!isWidgetDoorgegeven(x.id,cat));
+  const toon = !!_widgetToonAfg[cat];
+  const shown = toon ? items : open;
+  const rij = (x)=>{
+    const dg = isWidgetDoorgegeven(x.id,cat);
+    return `<div style="padding:12px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;${dg?'opacity:.55;':''}">`
+      + `<div style="flex:1;min-width:0;cursor:pointer;" onclick="openDetail(${x.id})">`
+      + `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span style="font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:600;">${x.automaatnr||'—'}</span><span style="font-size:11px;color:var(--text3);">${x.datum||'—'}</span><span style="font-size:11px;color:var(--text3);">${x.mobilist||'—'}</span>${statusBadge(x.status)}${dg?'<span style="font-size:10px;font-weight:700;color:var(--green);background:var(--green-bg);border:1px solid rgba(34,197,94,.3);padding:1px 7px;border-radius:10px;">✓ doorgegeven</span>':''}</div>`
+      + `<div style="font-size:12px;color:var(--text2);margin-top:2px;">${x.locatie||'—'}</div>${extraCol(x)}</div>`
+      + `<div style="flex-shrink:0;">`
+      + (dg
+          ? `<button class="btn btn-ghost" style="font-size:11px;padding:5px 9px;" onclick="maakWidgetOngedaan(${x.id},'${cat}','${elId}')">↩️ Ongedaan</button>`
+          : `<button class="btn btn-ghost" style="font-size:11px;padding:5px 9px;color:var(--green);border-color:rgba(34,197,94,.3);" onclick="markeerWidgetDoorgegeven(${x.id},'${cat}','${elId}')">✓ Doorgegeven</button>`)
+      + `</div></div>`;
+  };
+  let out = `<div style="padding:8px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--surface2);"><span style="font-size:11px;color:var(--text3);font-weight:600;">${open.length} open${afg.length?' · '+afg.length+' afgehandeld':''}</span>${afg.length?`<button class="btn btn-ghost" style="margin-left:auto;font-size:11px;padding:4px 10px;" onclick="toggleWidgetAfgehandeld('${cat}','${elId}')">${toon?'Verberg afgehandelde':'Toon afgehandelde ('+afg.length+')'}</button>`:''}</div>`;
+  out += shown.length ? shown.map(rij).join('') : '<div class="plan-empty" style="color:var(--green);">✅ Alles doorgegeven</div>';
+  el.innerHTML = out;
+}
 function buildVuurwerkWidget(){const zoek=(document.getElementById('vuurwerk-search')?.value||'').toLowerCase();const sf=document.getElementById('vuurwerk-status')?.value||'';const data=(dbData||[]).filter(x=>{const r=x.cos_remarks||{};const v=r['cos_vuurwerk']||r[8]||'';const ok=v==='Nee ontbreekt'||v==='Ja aanwezig maar met schade';if(!ok)return false;if(sf==='ontbreekt'&&v!=='Nee ontbreekt')return false;if(sf==='schade'&&v!=='Ja aanwezig maar met schade')return false;return!zoek||(x.automaatnr||'').toLowerCase().includes(zoek)||(x.locatie||'').toLowerCase().includes(zoek);}).sort((a,b)=>String(b.datum).localeCompare(String(a.datum)));renderWidgetLijst('vuurwerk-lijst',data,x=>{const v=(x.cos_remarks||{})['cos_vuurwerk']||(x.cos_remarks||{})[8]||'';return`<div style="font-size:11px;color:${v==='Nee ontbreekt'?'var(--red)':'var(--amber)'};margin-top:3px;font-weight:600;">🧨 ${v}</div>`;});}
 function buildSchadeWidget(){const zoek=(document.getElementById('schade-search')?.value||'').toLowerCase();const data=(dbData||[]).filter(x=>{const r=(x.cos_remarks||{})['cos_schade']||(x.cos_remarks||{})[7]||'';return r==='Ja er is schade'&&(!zoek||(x.automaatnr||'').toLowerCase().includes(zoek)||(x.locatie||'').toLowerCase().includes(zoek));}).sort((a,b)=>String(b.datum).localeCompare(String(a.datum)));renderWidgetLijst('schade-lijst',data,x=>{return `<div style="font-size:11px;color:var(--red);margin-top:3px;">⚠️ Schade aanwezig</div>`;});}
 function buildRoestWidget(){const zoek=(document.getElementById('roest-search')?.value||'').toLowerCase();const data=(dbData||[]).filter(x=>{const r=(x.prev_remarks||{})['prev_roest']||(x.prev_remarks||{})[0]||'';const v=(x.prev_remarks||{})['prev_vocht']||(x.prev_remarks||{})[1]||'';return (r==='Ja er is roest'||v==='Ja')&&(!zoek||(x.automaatnr||'').toLowerCase().includes(zoek)||(x.locatie||'').toLowerCase().includes(zoek));}).sort((a,b)=>String(b.datum).localeCompare(String(a.datum)));renderWidgetLijst('roest-lijst',data,x=>{const r=(x.prev_remarks||{})['prev_roest']||'';const v=(x.prev_remarks||{})['prev_vocht']||'';const msgs=[];if(r==='Ja er is roest')msgs.push('🔴 Roest aanwezig');if(v==='Ja')msgs.push('💧 Vocht aanwezig');return msgs.map(m=>`<div style="font-size:11px;color:var(--red);margin-top:3px;">${m}</div>`).join('');});}
